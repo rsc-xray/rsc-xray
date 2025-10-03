@@ -82,12 +82,35 @@ function expandDuplicateDependenciesDiagnostics(
 
     console.log('[expandDuplicateDeps] Found', imports.length, 'imports in', fileName);
 
-    // Create one diagnostic per import
+    // Extract the actual duplicated package names from the diagnostic message
+    // Message format: "Duplicate dependencies in route '/dashboard': chart-lib (also imported by UserActivity), lodash (also imported by SalesMetrics). Consider..."
+    // or: "Duplicate dependencies: chart-lib (also imported by UserActivity). Consider..."
+    const duplicatedPackages = new Set<string>();
+    const messageMatch = diag.message.match(/Duplicate dependencies[^:]*:\s*([^.]+)\./);
+    if (messageMatch) {
+      const packagesStr = messageMatch[1];
+      // Extract package names before " (also imported by"
+      const packageMatches = packagesStr.matchAll(/([^\s,]+)\s*\(also imported by/g);
+      for (const match of packageMatches) {
+        duplicatedPackages.add(match[1]);
+      }
+    }
+
+    console.log('[expandDuplicateDeps] Duplicated packages:', Array.from(duplicatedPackages));
+
+    // Create one diagnostic per DUPLICATED import (not all imports)
     for (const importStmt of imports) {
       if (ts.isImportDeclaration(importStmt)) {
         const moduleSpecifier = importStmt.moduleSpecifier;
         if (ts.isStringLiteral(moduleSpecifier)) {
           const packageName = moduleSpecifier.text;
+
+          // Only create diagnostic if this package is actually duplicated
+          if (!duplicatedPackages.has(packageName)) {
+            console.log('[expandDuplicateDeps] Skipping non-duplicated import:', packageName);
+            continue;
+          }
+
           const startPos = sourceFile.getLineAndCharacterOfPosition(
             moduleSpecifier.getStart(sourceFile)
           );
