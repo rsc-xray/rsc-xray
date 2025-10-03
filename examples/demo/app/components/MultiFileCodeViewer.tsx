@@ -83,12 +83,18 @@ export function MultiFileCodeViewer({
   const [isReady, setIsReady] = useState(false);
   const scenarioRef = useRef(scenario);
   const [localDiagnostics, setLocalDiagnostics] = useState<Array<Diagnostic | Suggestion>>([]);
+  const diagnosticsRef = useRef<Array<Diagnostic | Suggestion>>([]);
   const reAnalyzeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Keep scenario ref up to date
   useEffect(() => {
     scenarioRef.current = scenario;
   }, [scenario]);
+
+  // Keep diagnostics ref in sync with state
+  useEffect(() => {
+    diagnosticsRef.current = localDiagnostics;
+  }, [localDiagnostics]);
 
   const activeFile = files.find((f) => f.fileName === activeFileName);
 
@@ -272,11 +278,13 @@ export function MultiFileCodeViewer({
     }
 
     // Use sync linter that filters local diagnostics for the active file
+    // Use diagnosticsRef to always read the latest diagnostics (closure issue fix)
     const linterExtension = linter(() => {
+      const currentDiags = diagnosticsRef.current;
       console.log(
-        `[MultiFileCodeViewer] Filtering ${localDiagnostics.length} diagnostics for ${activeFile.fileName}`
+        `[MultiFileCodeViewer] Filtering ${currentDiags.length} diagnostics for ${activeFile.fileName}`
       );
-      return convertDiagnostics(localDiagnostics, activeFile.fileName);
+      return convertDiagnostics(currentDiags, activeFile.fileName);
     });
 
     const view = new EditorView({
