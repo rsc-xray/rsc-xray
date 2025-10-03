@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
+  <style>
+    @keyframes fill {
+      0% { width: 0; }
+      100% { width: var(--w); }
+    }
+    .bar { height: 12px; rx: 6; fill: #93c5fd; }
+    .row { transform-origin: left center; }
+    .anim rect { width: 0; animation: fill 1200ms ease forwards; }
+    .anim rect:nth-child(1) { --w: 220px; animation-delay: 200ms; }
+    .anim rect:nth-child(2) { --w: 160px; animation-delay: 450ms; }
+    .anim rect:nth-child(3) { --w: 280px; animation-delay: 700ms; }
+  </style>
+  <rect width="100%" height="100%" fill="#f8fafc"/>
+  <g transform="translate(24,36)" class="anim">
+    <rect class="bar" y="0"   height="12" rx="6" />
+    <rect class="bar" y="32"  height="12" rx="6" />
+    <rect class="bar" y="64"  height="12" rx="6" />
+  </g>
+  <text x="24" y="130" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" font-size="12" fill="#475569">CI budgets (animated preview)</text>
+</svg>
