@@ -153,29 +153,37 @@ export function detectClientSizeIssues(
 
   for (const [pairKey, chunks] of componentPairsDuplicates.entries()) {
     const components = pairKey.split('|');
-    if (chunks.size >= 1) {
-      // Report any shared dependencies (even single chunks can be meaningful)
-      for (const component of components) {
-        // Get other component names (extract filename from path for clarity)
-        const otherComponents = components
-          .filter((c) => c !== component)
-          .map((path) => {
-            const match = path.match(/([^/]+)\.(tsx?|jsx?)$/);
-            return match ? match[1] : path;
-          });
 
-        // Build route-aware message
-        const routeContext = route ? ` in route '${route}'` : '';
-        const otherComponentsList = otherComponents.join(', ');
-        const chunksList = Array.from(chunks).join(', ');
+    // Only report if multiple distinct components share chunks (prevent self-referencing)
+    if (components.length < 2 || chunks.size < 1) {
+      continue;
+    }
 
-        const message =
-          `Duplicate dependencies${routeContext}: ${chunksList} ` +
-          `(also imported by ${otherComponentsList}). ` +
-          `Consider extracting shared code to a common module or using dynamic imports.`;
+    for (const component of components) {
+      // Get other component names (extract filename from path for clarity)
+      const otherComponents = components
+        .filter((c) => c !== component)
+        .map((path) => {
+          const match = path.match(/([^/]+)\.(tsx?|jsx?)$/);
+          return match ? match[1] : path;
+        });
 
-        diagnostics.push(toDiagnostic(component, DUPLICATE_DEPS_RULE, message, 'warn', sourceFile));
+      // Skip if no other components (shouldn't happen, but safety check)
+      if (otherComponents.length === 0) {
+        continue;
       }
+
+      // Build route-aware message
+      const routeContext = route ? ` in route '${route}'` : '';
+      const otherComponentsList = otherComponents.join(', ');
+      const chunksList = Array.from(chunks).join(', ');
+
+      const message =
+        `Duplicate dependencies${routeContext}: ${chunksList} ` +
+        `(also imported by ${otherComponentsList}). ` +
+        `Consider extracting shared code to a common module or using dynamic imports.`;
+
+      diagnostics.push(toDiagnostic(component, DUPLICATE_DEPS_RULE, message, 'warn', sourceFile));
     }
   }
 

@@ -125,38 +125,46 @@ export function MultiFileCodeViewer({
 
     if (!viewRef.current) return [];
 
-    return filtered.map((diag) => {
-      try {
-        // Use the precise range from the analyzer if available
-        if (diag.loc?.range) {
+    return filtered
+      .filter((diag) => {
+        // Skip component-level diagnostics (0-0 range) - they should be shown in a summary panel, not inline
+        if (diag.loc?.range && diag.loc.range.from === 0 && diag.loc.range.to === 0) {
+          return false;
+        }
+        return true;
+      })
+      .map((diag) => {
+        try {
+          // Use the precise range from the analyzer if available
+          if (diag.loc?.range) {
+            return {
+              from: diag.loc.range.from,
+              to: diag.loc.range.to,
+              severity: diag.level === 'error' ? 'error' : 'warning',
+              message: diag.message,
+              source: diag.rule,
+            } as CMDiagnostic;
+          }
+
+          // Fallback: shouldn't happen with new schema, but kept for safety
           return {
-            from: diag.loc.range.from,
-            to: diag.loc.range.to,
+            from: 0,
+            to: 10,
+            severity: diag.level === 'error' ? 'error' : 'warning',
+            message: diag.message,
+            source: diag.rule,
+          } as CMDiagnostic;
+        } catch (e) {
+          console.error('[MultiFileCodeViewer] Error converting diagnostic:', e);
+          return {
+            from: 0,
+            to: 10,
             severity: diag.level === 'error' ? 'error' : 'warning',
             message: diag.message,
             source: diag.rule,
           } as CMDiagnostic;
         }
-
-        // Fallback: shouldn't happen with new schema, but kept for safety
-        return {
-          from: 0,
-          to: 10,
-          severity: diag.level === 'error' ? 'error' : 'warning',
-          message: diag.message,
-          source: diag.rule,
-        } as CMDiagnostic;
-      } catch (e) {
-        console.error('[MultiFileCodeViewer] Error converting diagnostic:', e);
-        return {
-          from: 0,
-          to: 10,
-          severity: diag.level === 'error' ? 'error' : 'warning',
-          message: diag.message,
-          source: diag.rule,
-        } as CMDiagnostic;
-      }
-    });
+      });
   };
 
   // Initialize or update CodeMirror editor
