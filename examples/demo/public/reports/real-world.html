@@ -149,8 +149,14 @@
     <td><span class="badge error" title="WARN: Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.
 WARN: Client component is 95.7KB (91% over 50.0KB threshold). Consider code splitting or lazy loading.
 WARN: Client component is 85.0KB (70% over 50.0KB threshold). Consider code splitting or lazy loading.
+WARN: Duplicate dependencies in route '/dashboard': chart-lib (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/dashboard': chart-lib (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/dashboard': date-fns (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/dashboard': date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/dashboard': lodash (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/dashboard': lodash (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.
 ERROR: Client components must not import 'fs'.
-WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalidate = 60'. ISR (revalidate) requires static or auto dynamic mode.">Issues 5</span></td>
+WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalidate = 60'. ISR (revalidate) requires static or auto dynamic mode.">Issues 11</span></td>
   </tr><tr>
     <td>CLIENT</td>
     <td>app/dashboard/SalesMetrics.tsx</td>
@@ -158,7 +164,13 @@ WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalid
     <td><span class="badge warn" title="WARN: Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.
 WARN: Client component is 95.7KB (91% over 50.0KB threshold). Consider code splitting or lazy loading.
 WARN: Client component is 85.0KB (70% over 50.0KB threshold). Consider code splitting or lazy loading.
-WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalidate = 60'. ISR (revalidate) requires static or auto dynamic mode.">Issues 4</span></td>
+WARN: Duplicate dependencies in route '/dashboard': chart-lib (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/dashboard': chart-lib (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/dashboard': date-fns (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/dashboard': date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/dashboard': lodash (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/dashboard': lodash (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalidate = 60'. ISR (revalidate) requires static or auto dynamic mode.">Issues 10</span></td>
   </tr><tr>
     <td>CLIENT</td>
     <td>app/dashboard/UserActivity.tsx</td>
@@ -166,11 +178,17 @@ WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalid
     <td><span class="badge warn" title="WARN: Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.
 WARN: Client component is 95.7KB (91% over 50.0KB threshold). Consider code splitting or lazy loading.
 WARN: Client component is 85.0KB (70% over 50.0KB threshold). Consider code splitting or lazy loading.
-WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalidate = 60'. ISR (revalidate) requires static or auto dynamic mode.">Issues 4</span></td>
+WARN: Duplicate dependencies in route '/dashboard': chart-lib (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/dashboard': chart-lib (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/dashboard': date-fns (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/dashboard': date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/dashboard': lodash (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/dashboard': lodash (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalidate = 60'. ISR (revalidate) requires static or auto dynamic mode.">Issues 10</span></td>
   </tr>
           </tbody>
        </table>
-        <h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 16px;">Diagnostics (18)</h3>
+        <h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 16px;">Diagnostics (42)</h3>
            <table class="suggestions-table">
             <thead>
               <tr>
@@ -207,6 +225,42 @@ WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalid
                     <td>Client component is 85.0KB (70% over 50.0KB threshold). Consider code splitting or lazy loading.</td>
                     <td>app/dashboard/page.tsx</td>
                   </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/dashboard/page.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': chart-lib (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/dashboard/page.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/dashboard/page.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': chart-lib (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/dashboard/page.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/dashboard/page.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': date-fns (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/dashboard/page.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/dashboard/page.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/dashboard/page.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/dashboard/page.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': lodash (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/dashboard/page.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/dashboard/page.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': lodash (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/dashboard/page.tsx</td>
+                  </tr><tr>
                     <td>route-segment-config-conflict</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/page.tsx:350-389</td>
@@ -229,6 +283,42 @@ WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalid
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/components/ProductChart.tsx:0-0</td>
                     <td>Client component is 85.0KB (70% over 50.0KB threshold). Consider code splitting or lazy loading.</td>
+                    <td>app/components/ProductChart.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/components/ProductChart.tsx:29-33</td>
+                    <td>Duplicate dependencies in route '/dashboard': chart-lib (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/components/ProductChart.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/components/ProductChart.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': chart-lib (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/components/ProductChart.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/components/ProductChart.tsx:29-33</td>
+                    <td>Duplicate dependencies in route '/dashboard': date-fns (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/components/ProductChart.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/components/ProductChart.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/components/ProductChart.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/components/ProductChart.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': lodash (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/components/ProductChart.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/components/ProductChart.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': lodash (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/components/ProductChart.tsx</td>
                   </tr><tr>
                     <td>client-forbidden-import</td>
@@ -261,6 +351,42 @@ WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalid
                     <td>Client component is 85.0KB (70% over 50.0KB threshold). Consider code splitting or lazy loading.</td>
                     <td>app/dashboard/SalesMetrics.tsx</td>
                   </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/dashboard/SalesMetrics.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': chart-lib (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/dashboard/SalesMetrics.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/dashboard/SalesMetrics.tsx:36-47</td>
+                    <td>Duplicate dependencies in route '/dashboard': chart-lib (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/dashboard/SalesMetrics.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/dashboard/SalesMetrics.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': date-fns (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/dashboard/SalesMetrics.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/dashboard/SalesMetrics.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/dashboard/SalesMetrics.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/dashboard/SalesMetrics.tsx:36-47</td>
+                    <td>Duplicate dependencies in route '/dashboard': lodash (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/dashboard/SalesMetrics.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/dashboard/SalesMetrics.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': lodash (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/dashboard/SalesMetrics.tsx</td>
+                  </tr><tr>
                     <td>route-segment-config-conflict</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/SalesMetrics.tsx:0-0</td>
@@ -283,6 +409,42 @@ WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalid
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/UserActivity.tsx:37-47</td>
                     <td>Client component is 85.0KB (70% over 50.0KB threshold). Consider code splitting or lazy loading.</td>
+                    <td>app/dashboard/UserActivity.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/dashboard/UserActivity.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': chart-lib (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/dashboard/UserActivity.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/dashboard/UserActivity.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': chart-lib (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/dashboard/UserActivity.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/dashboard/UserActivity.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': date-fns (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/dashboard/UserActivity.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/dashboard/UserActivity.tsx:37-47</td>
+                    <td>Duplicate dependencies in route '/dashboard': date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/dashboard/UserActivity.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/dashboard/UserActivity.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': lodash (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/dashboard/UserActivity.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/dashboard/UserActivity.tsx:37-47</td>
+                    <td>Duplicate dependencies in route '/dashboard': lodash (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/dashboard/UserActivity.tsx</td>
                   </tr><tr>
                     <td>route-segment-config-conflict</td>
@@ -322,22 +484,32 @@ WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalid
     <td><span class="badge error" title="WARN: Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.
 WARN: Client component is 95.7KB (91% over 50.0KB threshold). Consider code splitting or lazy loading.
 WARN: Client component is 85.0KB (70% over 50.0KB threshold). Consider code splitting or lazy loading.
+WARN: Duplicate dependencies in route '/dashboard': chart-lib (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/dashboard': chart-lib (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/dashboard': date-fns (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/dashboard': date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/dashboard': lodash (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/dashboard': lodash (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.
 ERROR: Client components must not import 'fs'.
-WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalidate = 60'. ISR (revalidate) requires static or auto dynamic mode.">Issues 5</span></td>
+WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalidate = 60'. ISR (revalidate) requires static or auto dynamic mode.">Issues 11</span></td>
   </tr><tr>
     <td>CLIENT</td>
     <td>app/products/ProductGrid.tsx</td>
     <td>24.4 KB</td>
-    <td><span class="badge warn" title="WARN: Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.">Issues 1</span></td>
+    <td><span class="badge warn" title="WARN: Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.
+WARN: Duplicate dependencies in route '/products': date-fns (also imported by ProductGrid). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/products': date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.">Issues 3</span></td>
   </tr><tr>
     <td>CLIENT</td>
     <td>app/products/FilterBar.tsx</td>
     <td>7.8 KB</td>
-    <td><span class="badge warn" title="WARN: Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.">Issues 1</span></td>
+    <td><span class="badge warn" title="WARN: Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.
+WARN: Duplicate dependencies in route '/products': date-fns (also imported by ProductGrid). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies in route '/products': date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.">Issues 3</span></td>
   </tr>
           </tbody>
        </table>
-        <h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 16px;">Diagnostics (9)</h3>
+        <h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 16px;">Diagnostics (21)</h3>
            <table class="suggestions-table">
             <thead>
               <tr>
@@ -362,6 +534,18 @@ WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalid
                     <td>Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.</td>
                     <td>app/products/page.tsx</td>
                   </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/products/page.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/products': date-fns (also imported by ProductGrid). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/products/page.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/products/page.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/products': date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/products/page.tsx</td>
+                  </tr><tr>
                     <td>client-component-oversized</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/components/ProductChart.tsx:29-33</td>
@@ -378,6 +562,42 @@ WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalid
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/components/ProductChart.tsx:0-0</td>
                     <td>Client component is 85.0KB (70% over 50.0KB threshold). Consider code splitting or lazy loading.</td>
+                    <td>app/components/ProductChart.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/components/ProductChart.tsx:29-33</td>
+                    <td>Duplicate dependencies in route '/dashboard': chart-lib (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/components/ProductChart.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/components/ProductChart.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': chart-lib (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/components/ProductChart.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/components/ProductChart.tsx:29-33</td>
+                    <td>Duplicate dependencies in route '/dashboard': date-fns (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/components/ProductChart.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/components/ProductChart.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/components/ProductChart.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/components/ProductChart.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': lodash (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/components/ProductChart.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/components/ProductChart.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/dashboard': lodash (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/components/ProductChart.tsx</td>
                   </tr><tr>
                     <td>client-forbidden-import</td>
@@ -398,10 +618,34 @@ WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalid
                     <td>Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.</td>
                     <td>app/products/ProductGrid.tsx</td>
                   </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/products/ProductGrid.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/products': date-fns (also imported by ProductGrid). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/products/ProductGrid.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/products/ProductGrid.tsx:37-47</td>
+                    <td>Duplicate dependencies in route '/products': date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/products/ProductGrid.tsx</td>
+                  </tr><tr>
                     <td>client-component-oversized</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/products/FilterBar.tsx:0-0</td>
                     <td>Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.</td>
+                    <td>app/products/FilterBar.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/products/FilterBar.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/products': date-fns (also imported by ProductGrid). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>app/products/FilterBar.tsx</td>
+                  </tr><tr>
+                    <td>duplicate-dependencies</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/products/FilterBar.tsx:0-0</td>
+                    <td>Duplicate dependencies in route '/products': date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/products/FilterBar.tsx</td>
                   </tr>
             </tbody>

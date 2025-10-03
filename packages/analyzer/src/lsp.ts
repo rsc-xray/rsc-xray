@@ -51,6 +51,9 @@ export interface LspAnalysisRequest {
 
     /** Known client component paths (for serialization-boundary) */
     clientComponentPaths?: string[];
+
+    /** Current route being analyzed (for route-specific diagnostics) */
+    route?: string;
   };
 }
 
@@ -178,6 +181,7 @@ export function analyzeLspRequest(request: LspAnalysisRequest): LspAnalysisRespo
       try {
         const results = detectClientSizeIssues(context.clientBundles, {
           sourceFile,
+          route: context.route,
         });
         diagnostics.push(...results);
         rulesExecuted.push('client-component-oversized', 'duplicate-dependencies');

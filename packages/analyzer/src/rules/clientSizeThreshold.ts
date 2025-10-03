@@ -13,6 +13,8 @@ export interface SizeThresholdConfig {
   thresholdBytes?: number;
   /** Optional source file for accurate diagnostic positioning */
   sourceFile?: ts.SourceFile;
+  /** Current route being analyzed (for route-specific duplicate messages) */
+  route?: string;
 }
 
 interface ChunkUsage {
@@ -146,21 +148,33 @@ export function detectClientSizeIssues(
     componentPairsDuplicates.set(pairKey, chunks);
   }
 
-  // Report duplicate dependencies
+  // Report duplicate dependencies with route-aware messages
+  const { route } = config;
+
   for (const [pairKey, chunks] of componentPairsDuplicates.entries()) {
     const components = pairKey.split('|');
-    if (chunks.size >= 3) {
-      // Only report when multiple chunks are duplicated
+    if (chunks.size >= 1) {
+      // Report any shared dependencies (even single chunks can be meaningful)
       for (const component of components) {
-        diagnostics.push(
-          toDiagnostic(
-            component,
-            DUPLICATE_DEPS_RULE,
-            `Component shares ${chunks.size} dependencies with ${components.length - 1} other component(s). Consider extracting shared code to a common module or using dynamic imports.`,
-            'warn',
-            sourceFile
-          )
-        );
+        // Get other component names (extract filename from path for clarity)
+        const otherComponents = components
+          .filter((c) => c !== component)
+          .map((path) => {
+            const match = path.match(/([^/]+)\.(tsx?|jsx?)$/);
+            return match ? match[1] : path;
+          });
+
+        // Build route-aware message
+        const routeContext = route ? ` in route '${route}'` : '';
+        const otherComponentsList = otherComponents.join(', ');
+        const chunksList = Array.from(chunks).join(', ');
+
+        const message =
+          `Duplicate dependencies${routeContext}: ${chunksList} ` +
+          `(also imported by ${otherComponentsList}). ` +
+          `Consider extracting shared code to a common module or using dynamic imports.`;
+
+        diagnostics.push(toDiagnostic(component, DUPLICATE_DEPS_RULE, message, 'warn', sourceFile));
       }
     }
   }
