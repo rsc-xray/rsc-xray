@@ -144,7 +144,7 @@
          </thead>
          <tbody><tr>
     <td>CLIENT</td>
-    <td>app/dashboard/ProductChart.tsx</td>
+    <td>app/components/ProductChart.tsx</td>
     <td>142 KB</td>
     <td><span class="badge error" title="WARN: Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.
 WARN: Client component is 95.7KB (91% over 50.0KB threshold). Consider code splitting or lazy loading.
@@ -185,7 +185,7 @@ WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalid
               <tr>
                     <td>suspense-boundary-missing</td>
                     <td class="suggestion-level-warn">WARN</td>
-                    <td>app/dashboard/page.tsx:985-1207</td>
+                    <td>app/dashboard/page.tsx:1000-1222</td>
                     <td>Async server component with 2 await expressions should be wrapped in a Suspense boundary for optimal streaming.</td>
                     <td>app/dashboard/page.tsx</td>
                   </tr><tr>
@@ -209,39 +209,39 @@ WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalid
                   </tr><tr>
                     <td>route-segment-config-conflict</td>
                     <td class="suggestion-level-warn">WARN</td>
-                    <td>app/dashboard/page.tsx:335-374</td>
+                    <td>app/dashboard/page.tsx:350-389</td>
                     <td>Route config 'dynamic = "force-dynamic"' conflicts with 'revalidate = 60'. ISR (revalidate) requires static or auto dynamic mode.</td>
                     <td>app/dashboard/page.tsx</td>
                   </tr><tr>
                     <td>client-component-oversized</td>
                     <td class="suggestion-level-warn">WARN</td>
-                    <td>app/dashboard/ProductChart.tsx:29-33</td>
+                    <td>app/components/ProductChart.tsx:29-33</td>
                     <td>Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.</td>
-                    <td>app/dashboard/ProductChart.tsx</td>
+                    <td>app/components/ProductChart.tsx</td>
                   </tr><tr>
                     <td>client-component-oversized</td>
                     <td class="suggestion-level-warn">WARN</td>
-                    <td>app/dashboard/ProductChart.tsx:0-0</td>
+                    <td>app/components/ProductChart.tsx:0-0</td>
                     <td>Client component is 95.7KB (91% over 50.0KB threshold). Consider code splitting or lazy loading.</td>
-                    <td>app/dashboard/ProductChart.tsx</td>
+                    <td>app/components/ProductChart.tsx</td>
                   </tr><tr>
                     <td>client-component-oversized</td>
                     <td class="suggestion-level-warn">WARN</td>
-                    <td>app/dashboard/ProductChart.tsx:0-0</td>
+                    <td>app/components/ProductChart.tsx:0-0</td>
                     <td>Client component is 85.0KB (70% over 50.0KB threshold). Consider code splitting or lazy loading.</td>
-                    <td>app/dashboard/ProductChart.tsx</td>
+                    <td>app/components/ProductChart.tsx</td>
                   </tr><tr>
                     <td>client-forbidden-import</td>
                     <td class="suggestion-level-error">ERROR</td>
-                    <td>app/dashboard/ProductChart.tsx:29-33</td>
+                    <td>app/components/ProductChart.tsx:29-33</td>
                     <td>Client components must not import 'fs'.</td>
-                    <td>app/dashboard/ProductChart.tsx</td>
+                    <td>app/components/ProductChart.tsx</td>
                   </tr><tr>
                     <td>route-segment-config-conflict</td>
                     <td class="suggestion-level-warn">WARN</td>
-                    <td>app/dashboard/ProductChart.tsx:0-0</td>
+                    <td>app/components/ProductChart.tsx:0-0</td>
                     <td>Route config 'dynamic = "force-dynamic"' conflicts with 'revalidate = 60'. ISR (revalidate) requires static or auto dynamic mode.</td>
-                    <td>app/dashboard/ProductChart.tsx</td>
+                    <td>app/components/ProductChart.tsx</td>
                   </tr><tr>
                     <td>client-component-oversized</td>
                     <td class="suggestion-level-warn">WARN</td>
@@ -290,6 +290,119 @@ WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalid
                     <td>app/dashboard/UserActivity.tsx:0-0</td>
                     <td>Route config 'dynamic = "force-dynamic"' conflicts with 'revalidate = 60'. ISR (revalidate) requires static or auto dynamic mode.</td>
                     <td>app/dashboard/UserActivity.tsx</td>
+                  </tr>
+            </tbody>
+          </table>
+        
+        
+      </section>
+<section class="route">
+        <div class="route-header">
+          <h2>/products</h2>
+          <span class="route-chunks">main, products</span>
+          <span class="badge">ROUTE</span>
+          <span class="badge">174 KB</span>
+          
+          
+        </div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>Kind</th>
+              <th>File</th>
+              <th>Bytes</th>
+              <th>Issues</th>
+            </tr>
+         </thead>
+         <tbody><tr>
+    <td>CLIENT</td>
+    <td>app/components/ProductChart.tsx</td>
+    <td>142 KB</td>
+    <td><span class="badge error" title="WARN: Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.
+WARN: Client component is 95.7KB (91% over 50.0KB threshold). Consider code splitting or lazy loading.
+WARN: Client component is 85.0KB (70% over 50.0KB threshold). Consider code splitting or lazy loading.
+ERROR: Client components must not import 'fs'.
+WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalidate = 60'. ISR (revalidate) requires static or auto dynamic mode.">Issues 5</span></td>
+  </tr><tr>
+    <td>CLIENT</td>
+    <td>app/products/ProductGrid.tsx</td>
+    <td>24.4 KB</td>
+    <td><span class="badge warn" title="WARN: Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.">Issues 1</span></td>
+  </tr><tr>
+    <td>CLIENT</td>
+    <td>app/products/FilterBar.tsx</td>
+    <td>7.8 KB</td>
+    <td><span class="badge warn" title="WARN: Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.">Issues 1</span></td>
+  </tr>
+          </tbody>
+       </table>
+        <h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 16px;">Diagnostics (9)</h3>
+           <table class="suggestions-table">
+            <thead>
+              <tr>
+                <th>Rule</th>
+                <th>Level</th>
+                <th>Location</th>
+                <th>Message</th>
+                <th>Node</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                    <td>suspense-boundary-missing</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/products/page.tsx:756-921</td>
+                    <td>Async server component with 2 await expressions should be wrapped in a Suspense boundary for optimal streaming.</td>
+                    <td>app/products/page.tsx</td>
+                  </tr><tr>
+                    <td>client-component-oversized</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/products/page.tsx:0-0</td>
+                    <td>Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.</td>
+                    <td>app/products/page.tsx</td>
+                  </tr><tr>
+                    <td>client-component-oversized</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/components/ProductChart.tsx:29-33</td>
+                    <td>Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.</td>
+                    <td>app/components/ProductChart.tsx</td>
+                  </tr><tr>
+                    <td>client-component-oversized</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/components/ProductChart.tsx:0-0</td>
+                    <td>Client component is 95.7KB (91% over 50.0KB threshold). Consider code splitting or lazy loading.</td>
+                    <td>app/components/ProductChart.tsx</td>
+                  </tr><tr>
+                    <td>client-component-oversized</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/components/ProductChart.tsx:0-0</td>
+                    <td>Client component is 85.0KB (70% over 50.0KB threshold). Consider code splitting or lazy loading.</td>
+                    <td>app/components/ProductChart.tsx</td>
+                  </tr><tr>
+                    <td>client-forbidden-import</td>
+                    <td class="suggestion-level-error">ERROR</td>
+                    <td>app/components/ProductChart.tsx:29-33</td>
+                    <td>Client components must not import 'fs'.</td>
+                    <td>app/components/ProductChart.tsx</td>
+                  </tr><tr>
+                    <td>route-segment-config-conflict</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/components/ProductChart.tsx:0-0</td>
+                    <td>Route config 'dynamic = "force-dynamic"' conflicts with 'revalidate = 60'. ISR (revalidate) requires static or auto dynamic mode.</td>
+                    <td>app/components/ProductChart.tsx</td>
+                  </tr><tr>
+                    <td>client-component-oversized</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/products/ProductGrid.tsx:0-0</td>
+                    <td>Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.</td>
+                    <td>app/products/ProductGrid.tsx</td>
+                  </tr><tr>
+                    <td>client-component-oversized</td>
+                    <td class="suggestion-level-warn">WARN</td>
+                    <td>app/products/FilterBar.tsx:0-0</td>
+                    <td>Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.</td>
+                    <td>app/products/FilterBar.tsx</td>
                   </tr>
             </tbody>
           </table>
