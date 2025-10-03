@@ -352,7 +352,14 @@ export function MultiFileCodeViewer({
     }
 
     console.log('[MultiFileCodeViewer] Forcing linter to re-run');
-    forceLinting(viewRef.current);
+
+    // Use setTimeout to ensure diagnosticsRef.current has updated
+    setTimeout(() => {
+      if (viewRef.current) {
+        console.log('[MultiFileCodeViewer] Actually calling forceLinting now');
+        forceLinting(viewRef.current);
+      }
+    }, 0);
   }, [localDiagnostics, isReady]);
 
   const handleTabChange = (fileName: string) => {
