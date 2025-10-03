@@ -13,7 +13,7 @@ import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { renderHtmlReport } from '@rsc-xray/report-html';
 import { analyze } from '@rsc-xray/lsp-server';
-import type { Model, Suggestion } from '@rsc-xray/schemas';
+import type { Model } from '@rsc-xray/schemas';
 
 /**
  * Generate a multi-route real-world demo report
@@ -512,16 +512,6 @@ export function FilterBar({ categories }: { categories: string[] }) {
           })),
       },
     },
-    suggestions: [
-      ...dashPageResult.diagnostics.filter((d): d is Suggestion => d.level === 'info'),
-      ...dashCompResults.flatMap((r) =>
-        r.diagnostics.filter((d): d is Suggestion => d.level === 'info')
-      ),
-      ...prodPageResult.diagnostics.filter((d): d is Suggestion => d.level === 'info'),
-      ...prodCompResults.flatMap((r) =>
-        r.diagnostics.filter((d): d is Suggestion => d.level === 'info')
-      ),
-    ],
   };
 
   // Generate HTML report
