@@ -105,7 +105,6 @@ export function DemoApp() {
             <MultiFileCodeViewer
               key={selectedScenarioId} // Force remount on scenario change
               files={allFiles}
-              diagnostics={diagnostics}
               initialFile="demo.tsx"
               scenario={scenario} // Pass scenario for analysis context
               onAnalysisComplete={(diags, duration) => {
