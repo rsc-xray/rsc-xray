@@ -11,7 +11,7 @@
 export interface Scenario {
   id: string;
   title: string;
-  category: 'fundamentals' | 'performance' | 'pro';
+  category: 'fundamentals' | 'performance' | 'pro' | 'real-world';
   isPro: boolean;
   rule: string;
   description: string;
@@ -33,10 +33,17 @@ export interface Scenario {
       totalBytes: number;
     }>;
     routeConfig?: {
-      dynamic?: string;
+      dynamic?: 'auto' | 'force-dynamic' | 'force-static' | 'error';
       revalidate?: number | false;
-      fetchCache?: string;
-      runtime?: string;
+      fetchCache?:
+        | 'auto'
+        | 'default-cache'
+        | 'only-cache'
+        | 'force-cache'
+        | 'default-no-store'
+        | 'only-no-store'
+        | 'force-no-store';
+      runtime?: 'nodejs' | 'edge';
       preferredRegion?: string;
     };
     reactVersion?: string;
@@ -47,6 +54,10 @@ export interface Scenario {
     code: string;
     description: string;
   }>;
+  /** Whether this scenario should show a generated report instead of live diagnostics */
+  showReport?: boolean;
+  /** Pre-generated HTML report content (for real-world scenarios) */
+  reportHtml?: string;
 }
 
 export const scenarios: Scenario[] = [
@@ -346,6 +357,187 @@ export default async function Page() {
       'Waterfall visualization',
       'Automatic refactoring suggestions',
       'Performance timeline',
+    ],
+  },
+
+  // Real-World Example
+  {
+    id: 'real-world-app',
+    title: 'Real-World E-Commerce Dashboard',
+    category: 'real-world',
+    isPro: false,
+    rule: 'multiple',
+    description: 'A realistic Next.js app with multiple RSC anti-patterns and performance issues',
+    code: `// app/dashboard/page.tsx
+// E-Commerce Dashboard with Analytics
+
+import fs from 'fs'; // ❌ Node API in potential client context
+import { Suspense } from 'react';
+import { ProductChart } from './ProductChart';
+import { SalesMetrics } from './SalesMetrics';
+import { UserActivity } from './UserActivity';
+
+export const revalidate = 60;
+export const dynamic = 'force-dynamic'; // ❌ Conflicts with revalidate
+
+async function getAnalytics() {
+  const data = await fetch('https://api.example.com/analytics');
+  return data.json();
+}
+
+async function getSales() {
+  const sales = await fetch('https://api.example.com/sales');
+  return sales.json();
+}
+
+export default async function Dashboard() {
+  // ❌ Sequential awaits (waterfall)
+  const analytics = await getAnalytics();
+  const sales = await getSales();
+  
+  // ❌ Passing Date object to client component
+  const handleExport = (date: Date) => {
+    console.log('Exporting', date);
+  };
+  
+  // ❌ Missing Suspense boundary
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <ProductChart 
+        data={analytics} 
+        onExport={handleExport}
+        timestamp={new Date()}
+      />
+      <SalesMetrics metrics={sales} />
+      <UserActivity />
+    </div>
+  );
+}`,
+    explanation: {
+      what: 'This real-world dashboard component contains 7 different RSC violations across multiple analyzer rules',
+      why: `The violations include:
+• Server/client boundary issues (serialization, forbidden imports)
+• Performance problems (sequential fetches, missing Suspense)
+• Configuration conflicts (route segment config)
+• Bundle size issues (duplicate dependencies across components)
+
+These patterns are common in production Next.js apps and can cause runtime errors, slow performance, and poor user experience.`,
+      how: `Fix each issue systematically:
+1. Remove Node.js imports (fs) or move to server-only code
+2. Resolve route config conflicts (remove dynamic or revalidate)
+3. Parallelize async operations with Promise.all()
+4. Wrap async components in Suspense boundaries
+5. Don't pass functions/Dates to client components
+6. Deduplicate shared dependencies with code splitting
+7. Use React 19 cache() for fetch deduplication`,
+    },
+    proFeatures: [
+      'Interactive overlay showing boundary tree with 7 violations highlighted',
+      'Performance dashboard with A-F scoring (this app: D- grade)',
+      'Automated refactoring via VS Code quick fixes (2 one-click, 5 guided)',
+      'CI budget enforcement to prevent regressions',
+      'Trend tracking across commits to measure improvement',
+    ],
+    contextDescription: `Analyzing a complete dashboard route with:
+• 3 client components (ProductChart, SalesMetrics, UserActivity)
+• Route segment config (revalidate + dynamic)
+• Async data fetching patterns
+• Cross-component dependency analysis`,
+    showReport: true,
+    context: {
+      clientComponentPaths: ['./ProductChart', './SalesMetrics', './UserActivity'],
+      routeConfig: {
+        revalidate: 60,
+        dynamic: 'force-dynamic',
+      },
+      clientBundles: [
+        {
+          filePath: 'app/dashboard/ProductChart.tsx',
+          chunks: ['chart-lib', 'date-fns'],
+          totalBytes: 145000,
+        },
+        {
+          filePath: 'app/dashboard/SalesMetrics.tsx',
+          chunks: ['chart-lib', 'lodash'],
+          totalBytes: 98000,
+        },
+        {
+          filePath: 'app/dashboard/UserActivity.tsx',
+          chunks: ['date-fns', 'lodash'],
+          totalBytes: 87000,
+        },
+      ],
+      reactVersion: '18.3.1',
+    },
+    contextFiles: [
+      {
+        fileName: 'ProductChart.tsx',
+        code: `'use client';
+import fs from 'fs'; // ❌ Node API in client component
+import { Chart } from 'chart-lib'; // Large dependency (80KB)
+import { format } from 'date-fns'; // Shared dependency
+
+interface Props {
+  data: any;
+  onExport: (date: Date) => void; // ❌ Function prop
+  timestamp: Date; // ❌ Date prop
+}
+
+export function ProductChart({ data, onExport, timestamp }: Props) {
+  return (
+    <div>
+      <h2>Product Sales</h2>
+      <Chart data={data} />
+      <p>Last updated: {format(timestamp, 'PPP')}</p>
+      <button onClick={() => onExport(new Date())}>
+        Export Report
+      </button>
+    </div>
+  );
+}`,
+        description: '❌ 3 violations: forbidden import, function prop, Date prop',
+      },
+      {
+        fileName: 'SalesMetrics.tsx',
+        code: `'use client';
+import { Chart } from 'chart-lib'; // ⚠️ Duplicate: 80KB
+import { merge } from 'lodash'; // Shared dependency (71KB)
+
+export function SalesMetrics({ metrics }: { metrics: any }) {
+  const config = merge({}, defaultConfig, metrics.config);
+  
+  return (
+    <div>
+      <h2>Sales Overview</h2>
+      <Chart type="bar" data={config} />
+    </div>
+  );
+}`,
+        description: '⚠️ 1 violation: duplicate chart-lib dependency (80KB)',
+      },
+      {
+        fileName: 'UserActivity.tsx',
+        code: `'use client';
+import { format } from 'date-fns'; // ⚠️ Duplicate
+import { debounce } from 'lodash'; // ⚠️ Duplicate
+
+// ❌ Manual deduplication (should use React 19 cache())
+const activityCache = new Map();
+async function fetchActivity() {
+  if (activityCache.has('key')) return activityCache.get('key');
+  const data = await fetch('/api/activity').then(r => r.json());
+  activityCache.set('key', data);
+  return data;
+}
+
+export function UserActivity() {
+  // ... component logic
+  return <div>Activity Feed</div>;
+}`,
+        description:
+          '⚠️ 2 violations: duplicate dependencies (date-fns, lodash), manual cache (use React 19 cache())',
+      },
     ],
   },
 ];

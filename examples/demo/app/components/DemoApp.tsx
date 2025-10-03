@@ -10,6 +10,7 @@ import { ExplanationPanel } from './ExplanationPanel';
 import { StatusBar } from './StatusBar';
 import { ProModal, type ProFeature } from './ProPreview';
 import { MultiFileCodeViewer, type CodeFile } from './MultiFileCodeViewer';
+import { ReportViewer } from './ReportViewer';
 import styles from './DemoApp.module.css';
 
 /**
@@ -49,6 +50,7 @@ export function DemoApp() {
     isOpen: false,
     feature: null,
   });
+  const [showReport, setShowReport] = useState(false);
 
   // Sync URL with scenario changes
   useSyncUrlOnScenarioChange(selectedScenarioId);
@@ -96,6 +98,7 @@ export function DemoApp() {
               diagnosticsCount={diagnostics.length}
               onSelectScenario={handleSelectScenario}
               onOpenProModal={handleOpenProModal}
+              onShowReport={() => setShowReport(true)}
             />
           }
           rightPanel={
@@ -128,6 +131,10 @@ export function DemoApp() {
           isOpen={proModalState.isOpen}
           onClose={handleCloseProModal}
         />
+      )}
+
+      {showReport && (
+        <ReportViewer scenarioTitle={scenario.title} onClose={() => setShowReport(false)} />
       )}
     </div>
   );
