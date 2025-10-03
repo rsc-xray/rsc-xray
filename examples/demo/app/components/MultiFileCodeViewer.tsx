@@ -120,13 +120,16 @@ export function MultiFileCodeViewer({
       if (onAnalysisStart) onAnalysisStart();
 
       try {
-        // Find the main editable file to analyze
-        const editableFile = files.find((f) => f.editable);
-        if (!editableFile) {
-          console.log('[MultiFileCodeViewer] No editable file found, using prop diagnostics');
+        // Analyze the main file (page.tsx or first file)
+        // The editable flag is UI-only; all files are source code for analysis
+        const mainFile = files.find((f) => f.fileName === scenario.fileName) || files[0];
+        if (!mainFile) {
+          console.log('[MultiFileCodeViewer] No files to analyze');
           setLocalDiagnostics(diagnostics);
           return;
         }
+
+        console.log(`[MultiFileCodeViewer] Analyzing ${mainFile.fileName}`);
 
         const response = await fetch('/api/analyze', {
           method: 'POST',
@@ -135,8 +138,8 @@ export function MultiFileCodeViewer({
             'Cache-Control': 'no-cache',
           },
           body: JSON.stringify({
-            code: editableFile.code,
-            fileName: editableFile.fileName,
+            code: mainFile.code,
+            fileName: mainFile.fileName,
             scenario: scenario.id,
             context: scenario.context,
           }),
