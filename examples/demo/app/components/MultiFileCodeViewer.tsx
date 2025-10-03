@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { EditorView, basicSetup } from 'codemirror';
 import { javascript } from '@codemirror/lang-javascript';
-import { linter, type Diagnostic as CMDiagnostic } from '@codemirror/lint';
+import { linter, forceLinting, type Diagnostic as CMDiagnostic } from '@codemirror/lint';
 import type { Diagnostic, Suggestion } from '@rsc-xray/schemas';
 import styles from './MultiFileCodeViewer.module.css';
 
@@ -342,13 +342,17 @@ export function MultiFileCodeViewer({
 
   // Update diagnostics when they change
   useEffect(() => {
-    if (!viewRef.current || !isReady) return;
+    console.log(
+      `[MultiFileCodeViewer] Diagnostics changed: ${localDiagnostics.length}, isReady: ${isReady}, viewRef: ${!!viewRef.current}`
+    );
 
-    import('@codemirror/lint').then(({ forceLinting }) => {
-      if (viewRef.current) {
-        forceLinting(viewRef.current);
-      }
-    });
+    if (!viewRef.current || !isReady) {
+      console.log('[MultiFileCodeViewer] Skipping forceLinting (editor not ready)');
+      return;
+    }
+
+    console.log('[MultiFileCodeViewer] Forcing linter to re-run');
+    forceLinting(viewRef.current);
   }, [localDiagnostics, isReady]);
 
   const handleTabChange = (fileName: string) => {
