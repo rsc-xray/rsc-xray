@@ -167,7 +167,7 @@ export function MultiFileCodeViewer({
     };
 
     runAnalysis();
-  }, [scenario?.id, files, onAnalysisStart, onAnalysisComplete]); // Re-run when scenario or files change
+  }, [scenario?.id]); // Only re-run when scenario changes (files/callbacks change too often)
 
   // Convert RSC X-Ray diagnostics to CodeMirror diagnostics for the active file
   const convertDiagnostics = (

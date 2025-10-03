@@ -64,12 +64,6 @@ function expandDuplicateDependenciesDiagnostics(
         sourceCode = contextFile.code;
         fileName = contextFile.fileName;
         matchedFile = diag.loc?.file; // Keep original file path for filtering
-        console.log(
-          '[expandDuplicateDeps] Matched context file:',
-          fileName,
-          'for diagnostic:',
-          diag.loc?.file
-        );
       }
     }
 
@@ -92,19 +86,10 @@ function expandDuplicateDependenciesDiagnostics(
       }
     }
 
-    console.log(
-      '[expandDuplicateDeps] Duplicated packages in message:',
-      Array.from(duplicatedPackages),
-      'for file:',
-      fileName
-    );
-
     // Parse the source code and find all imports
     const sourceFile = ts.createSourceFile(fileName, sourceCode, ts.ScriptTarget.Latest, true);
 
     const imports = sourceFile.statements.filter((stmt) => ts.isImportDeclaration(stmt));
-
-    console.log('[expandDuplicateDeps] Found', imports.length, 'imports in', fileName);
 
     // Create one diagnostic per DUPLICATED import (not all imports)
     for (const importStmt of imports) {
@@ -117,21 +102,6 @@ function expandDuplicateDependenciesDiagnostics(
           if (!duplicatedPackages.has(packageName)) {
             continue;
           }
-
-          const startPos = sourceFile.getLineAndCharacterOfPosition(
-            moduleSpecifier.getStart(sourceFile)
-          );
-
-          console.log(
-            '[expandDuplicateDeps] Creating diagnostic for',
-            packageName,
-            'at line',
-            startPos.line + 1,
-            'col',
-            startPos.character + 1,
-            'in',
-            matchedFile
-          );
 
           expanded.push({
             ...diag,
@@ -149,12 +119,6 @@ function expandDuplicateDependenciesDiagnostics(
     }
   }
 
-  console.log(
-    '[expandDuplicateDeps] Expanded',
-    diagnostics.length,
-    'diagnostics to',
-    expanded.length
-  );
   return expanded;
 }
 
