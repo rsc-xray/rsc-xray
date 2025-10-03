@@ -1,5 +1,5 @@
 import { ROUTE_WATERFALL_SUGGESTION_RULE } from '@rsc-xray/schemas';
-import type { Model, RouteCacheMetadata, Suggestion } from '@rsc-xray/schemas';
+import type { Model, RouteCacheMetadata, Suggestion, Diagnostic } from '@rsc-xray/schemas';
 
 const styles = `
   body {
@@ -77,6 +77,10 @@ const styles = `
     font-size: 12px;
     color: rgba(226, 232, 240, 0.9);
   }
+  .badge.error {
+    background: rgba(239, 68, 68, 0.2);
+    color: rgb(248, 113, 113);
+  }
   .badge.warn {
     background: rgba(249, 115, 22, 0.2);
     color: rgb(251, 191, 36);
@@ -103,6 +107,10 @@ const styles = `
     font-size: 12px;
     color: rgba(226, 232, 240, 0.7);
   }
+  .suggestion-level-error {
+    color: rgb(239, 68, 68);
+    font-weight: 600;
+  }
   .suggestion-level-warn {
     color: rgb(249, 115, 22);
   }
@@ -122,6 +130,18 @@ function formatBytes(bytes?: number): string {
   return `${kilobytes.toFixed(kilobytes >= 100 ? 0 : 1)} KB`;
 }
 
+function renderDiagnosticsBadge(diagnostics?: Diagnostic[]): string {
+  if (!diagnostics || diagnostics.length === 0) {
+    return '';
+  }
+  const hasError = diagnostics.some((item) => item.level === 'error');
+  const title = diagnostics
+    .map((item) => `${item.level.toUpperCase()}: ${item.message}`)
+    .join('\n');
+  const level = hasError ? 'error' : 'warn';
+  return `<span class="badge ${level}" title="${escapeHtmlAttr(title)}">Issues ${diagnostics.length}</span>`;
+}
+
 function renderSuggestionsBadge(suggestions?: Suggestion[]): string {
   if (!suggestions || suggestions.length === 0) {
     return '';
@@ -130,7 +150,7 @@ function renderSuggestionsBadge(suggestions?: Suggestion[]): string {
   const title = suggestions
     .map((item) => `${item.level.toUpperCase()}: ${item.message}`)
     .join('\n');
-  return `<span class="badge ${hasWarn ? 'warn' : 'info'}" title="${title}">Suggestions ${suggestions.length}</span>`;
+  return `<span class="badge ${hasWarn ? 'warn' : 'info'}" title="${escapeHtmlAttr(title)}">Suggestions ${suggestions.length}</span>`;
 }
 
 function escapeHtmlAttr(value: string): string {
@@ -161,13 +181,17 @@ function renderNodeRows(model: Model, nodeId: string, depth: number): string {
 
   const label = indentLabel(node.file ?? node.name ?? node.id, depth);
   const bytesLabel = formatBytes(node.bytes);
+  const diagnostics = renderDiagnosticsBadge(node.diagnostics);
   const suggestions = renderSuggestionsBadge(node.suggestions);
+
+  // Combine diagnostics and suggestions into one cell
+  const issues = [diagnostics, suggestions].filter(Boolean).join(' ');
 
   const currentRow = `<tr>
     <td>${node.kind.toUpperCase()}</td>
     <td>${label}</td>
     <td>${bytesLabel}</td>
-    <td>${suggestions}</td>
+    <td>${issues || ''}</td>
   </tr>`;
 
   const childRows = (node.children ?? [])
@@ -177,9 +201,33 @@ function renderNodeRows(model: Model, nodeId: string, depth: number): string {
   return `${currentRow}${childRows}`;
 }
 
+interface CollectedDiagnostic {
+  nodeLabel: string;
+  diagnostic: Diagnostic;
+}
+
 interface CollectedSuggestion {
   nodeLabel: string;
   suggestion: Suggestion;
+}
+
+function collectRouteDiagnostics(model: Model, nodeId: string): CollectedDiagnostic[] {
+  const node = model.nodes[nodeId];
+  if (!node) {
+    return [];
+  }
+
+  const nodeLabel = node.file ?? node.name ?? node.id;
+  const ownDiagnostics = (node.diagnostics ?? []).map((diagnostic) => ({
+    nodeLabel,
+    diagnostic,
+  }));
+
+  const childDiagnostics = (node.children ?? [])
+    .map((childId) => collectRouteDiagnostics(model, childId))
+    .flat();
+
+  return [...ownDiagnostics, ...childDiagnostics];
 }
 
 function collectRouteSuggestions(model: Model, nodeId: string): CollectedSuggestion[] {
@@ -262,6 +310,7 @@ export function renderHtmlReport(model: Model): string {
         .map((childId) => renderNodeRows(model, childId, 0))
         .join('');
 
+      const collectedDiagnostics = collectRouteDiagnostics(model, route.rootNodeId);
       const collectedSuggestions = collectRouteSuggestions(model, route.rootNodeId);
       const routeWaterfall = node?.suggestions?.find(
         (suggestion) => suggestion.rule === ROUTE_WATERFALL_SUGGESTION_RULE
@@ -270,8 +319,42 @@ export function renderHtmlReport(model: Model): string {
         ? `<span class="badge warn" title="${escapeHtmlAttr(routeWaterfall.message)}">Waterfall suspected</span>`
         : '';
       const cacheBadges = renderRouteCacheBadges(route.cache);
+
+      const diagnosticsTable = collectedDiagnostics.length
+        ? `<h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 16px;">Diagnostics (${collectedDiagnostics.length})</h3>
+           <table class="suggestions-table">
+            <thead>
+              <tr>
+                <th>Rule</th>
+                <th>Level</th>
+                <th>Location</th>
+                <th>Message</th>
+                <th>Node</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${collectedDiagnostics
+                .map(({ nodeLabel, diagnostic }) => {
+                  const loc = diagnostic.loc
+                    ? `${diagnostic.loc.file}:${diagnostic.loc.range.from}-${diagnostic.loc.range.to}`
+                    : 'n/a';
+                  const levelClass = `suggestion-level-${diagnostic.level}`;
+                  return `<tr>
+                    <td>${escapeHtml(diagnostic.rule)}</td>
+                    <td class="${levelClass}">${diagnostic.level.toUpperCase()}</td>
+                    <td>${escapeHtml(loc)}</td>
+                    <td>${escapeHtml(diagnostic.message)}</td>
+                    <td>${escapeHtml(nodeLabel)}</td>
+                  </tr>`;
+                })
+                .join('')}
+            </tbody>
+          </table>`
+        : '';
+
       const suggestionsTable = collectedSuggestions.length
-        ? `<table class="suggestions-table">
+        ? `<h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 16px;">Suggestions (${collectedSuggestions.length})</h3>
+           <table class="suggestions-table">
             <thead>
               <tr>
                 <th>Rule</th>
@@ -289,17 +372,22 @@ export function renderHtmlReport(model: Model): string {
                     : 'n/a';
                   const levelClass = `suggestion-level-${suggestion.level}`;
                   return `<tr>
-                    <td>${suggestion.rule}</td>
+                    <td>${escapeHtml(suggestion.rule)}</td>
                     <td class="${levelClass}">${suggestion.level.toUpperCase()}</td>
-                    <td>${loc}</td>
-                    <td>${suggestion.message}</td>
-                    <td>${nodeLabel}</td>
+                    <td>${escapeHtml(loc)}</td>
+                    <td>${escapeHtml(suggestion.message)}</td>
+                    <td>${escapeHtml(nodeLabel)}</td>
                   </tr>`;
                 })
                 .join('')}
             </tbody>
           </table>`
-        : '<p style="margin-top: 12px; font-size: 13px; color: rgba(148, 163, 184, 0.75);">No suggestions for this route.</p>';
+        : '';
+
+      const noIssuesMessage =
+        !collectedDiagnostics.length && !collectedSuggestions.length
+          ? '<p style="margin-top: 12px; font-size: 13px; color: rgba(148, 163, 184, 0.75);">No issues found for this route.</p>'
+          : '';
 
       const chunkLabel = route.chunks?.join(', ') ?? 'n/a';
       const bytesLabel = formatBytes(route.totalBytes);
@@ -320,13 +408,15 @@ export function renderHtmlReport(model: Model): string {
               <th>Kind</th>
               <th>File</th>
               <th>Bytes</th>
-              <th>Suggestions</th>
+              <th>Issues</th>
             </tr>
          </thead>
          <tbody>${rows}
           </tbody>
        </table>
+        ${diagnosticsTable}
         ${suggestionsTable}
+        ${noIssuesMessage}
       </section>`;
     })
     .join('\n');

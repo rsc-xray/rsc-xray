@@ -161,25 +161,32 @@ export function UserActivity() {
   };
 
   try {
-    // Analyze main file
+    // Analyze main file with ALL rules (omit scenario to run everything)
     const mainFileResult = await analyze({
       code: scenario.code,
       fileName: 'app/dashboard/page.tsx',
       context: scenario.context,
+      // No scenario specified = run all applicable rules
     });
 
-    // Analyze context files
+    console.log(`Main file diagnostics: ${mainFileResult.diagnostics.length}`);
+    console.log(`Rules executed: ${mainFileResult.rulesExecuted.join(', ')}`);
+
+    // Analyze context files with ALL rules
     const contextResults = await Promise.all(
-      scenario.contextFiles.map(async (file) => ({
-        fileName: file.fileName,
-        diagnostics: (
-          await analyze({
-            code: file.code,
-            fileName: `app/dashboard/${file.fileName}`,
-            context: scenario.context,
-          })
-        ).diagnostics,
-      }))
+      scenario.contextFiles.map(async (file) => {
+        const result = await analyze({
+          code: file.code,
+          fileName: `app/dashboard/${file.fileName}`,
+          context: scenario.context,
+          // No scenario specified = run all applicable rules
+        });
+        console.log(`${file.fileName} diagnostics: ${result.diagnostics.length}`);
+        return {
+          fileName: file.fileName,
+          diagnostics: result.diagnostics,
+        };
+      })
     );
 
     // Build Model object
