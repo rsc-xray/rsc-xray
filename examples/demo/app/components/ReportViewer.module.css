@@ -39,23 +39,37 @@
 }
 
 .closeButton {
-  background: none;
-  border: none;
-  font-size: 2rem;
+  /* Position close button above modal in top-right corner */
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  background: var(--color-background);
+  border: 2px solid var(--color-border);
+  border-radius: 50%;
+  font-size: 1.75rem;
   line-height: 1;
   cursor: pointer;
-  color: var(--color-text-secondary);
-  transition: color 0.2s;
+  color: var(--color-text);
+  transition: all 0.2s;
   padding: 0;
-  width: 32px;
-  height: 32px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 1001; /* Above modal */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .closeButton:hover {
-  color: var(--color-text);
+  background: var(--color-error);
+  color: white;
+  border-color: var(--color-error);
+  transform: scale(1.1);
+}
+
+.closeButton:active {
+  transform: scale(0.95);
 }
 
 .content {

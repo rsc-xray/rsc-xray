@@ -15,6 +15,8 @@ export interface Scenario {
   isPro: boolean;
   rule: string;
   description: string;
+  /** Main file name (e.g., 'page.tsx', 'demo.tsx') - used consistently across demo and reports */
+  fileName?: string;
   code: string;
   explanation: {
     what: string;
@@ -368,6 +370,7 @@ export default async function Page() {
     isPro: false,
     rule: 'multiple',
     description: 'A realistic Next.js app with multiple RSC anti-patterns and performance issues',
+    fileName: 'page.tsx',
     code: `// app/dashboard/page.tsx
 // E-Commerce Dashboard with Analytics
 

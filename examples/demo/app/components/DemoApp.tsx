@@ -67,7 +67,7 @@ export function DemoApp() {
   // Prepare files for MultiFileCodeViewer
   const allFiles: CodeFile[] = [
     {
-      fileName: 'demo.tsx',
+      fileName: scenario.fileName || 'demo.tsx', // Use scenario's fileName or fallback to demo.tsx
       code: scenario.code,
       description: scenario.description,
       editable: true, // Main file is editable

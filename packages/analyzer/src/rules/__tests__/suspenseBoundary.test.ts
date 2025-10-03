@@ -63,6 +63,50 @@ describe('Suspense Boundary Analyzer', () => {
       expect(suggestions).toHaveLength(1);
       expect(firstSuggestion(suggestions).rule).toBe('suspense-boundary-missing');
     });
+
+    it('highlights JSX element when return has parentheses', () => {
+      const source = `
+        export default async function ServerComponent() {
+          const data = await fetch('/api/data').then(r => r.json());
+          return (
+            <div>{data.title}</div>
+          );
+        }
+      `;
+
+      const sourceFile = createSourceFile(source);
+      const suggestions = detectSuspenseBoundaryIssues(sourceFile, 'test.tsx');
+
+      expect(suggestions).toHaveLength(1);
+      expect(suggestions[0].rule).toBe('suspense-boundary-missing');
+      // Ensure diagnostic points to JSX element, not the entire function
+      expect(suggestions[0].loc).toBeDefined();
+      const { range } = suggestions[0].loc!;
+      const highlightedCode = source.slice(range.from, range.to);
+      expect(highlightedCode).toContain('<div>');
+      expect(highlightedCode).not.toContain('export default async function');
+    });
+
+    it('highlights JSX element when return has parentheses on new line', () => {
+      const source = `
+        export default async function Page() {
+          const data = await fetch('/api').then(r => r.json());
+          return (
+            <div>{data}</div>
+          );
+        }
+      `;
+
+      const sourceFile = createSourceFile(source);
+      const suggestions = detectSuspenseBoundaryIssues(sourceFile, 'test.tsx');
+
+      expect(suggestions).toHaveLength(1);
+      // Should highlight JSX, not function signature (parentheses allow multiline)
+      const { range } = suggestions[0].loc!;
+      const highlightedCode = source.slice(range.from, range.to);
+      expect(highlightedCode).toContain('<div>');
+      expect(highlightedCode).not.toContain('async function Page');
+    });
   });
 
   describe('async components with Suspense', () => {

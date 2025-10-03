@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import styles from './ReportViewer.module.css';
 
 interface ReportViewerProps {
@@ -12,7 +12,7 @@ interface ReportViewerProps {
  * Modal that displays an embedded HTML report for real-world scenarios
  *
  * This component shows a full-screen modal with:
- * - Close button
+ * - Close button (also responds to ESC key)
  * - Embedded iframe showing the generated RSC X-Ray HTML report
  *
  * The report is generated server-side and includes all diagnostics,
@@ -25,14 +25,32 @@ export function ReportViewer({ scenarioTitle, onClose }: ReportViewerProps) {
     setIsLoading(false);
   };
 
+  // Handle ESC key to close modal
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
+
   return (
     <div className={styles.overlay} onClick={onClose}>
+      {/* Close button positioned above modal */}
+      <button
+        className={styles.closeButton}
+        onClick={onClose}
+        aria-label="Close report (or press ESC)"
+      >
+        ×
+      </button>
+
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <h2>{scenarioTitle} - Analysis Report</h2>
-          <button className={styles.closeButton} onClick={onClose} aria-label="Close report">
-            ×
-          </button>
         </div>
         <div className={styles.content}>
           {isLoading && (
@@ -52,7 +70,7 @@ export function ReportViewer({ scenarioTitle, onClose }: ReportViewerProps) {
         <div className={styles.footer}>
           <p className={styles.hint}>
             💡 This is a full RSC X-Ray HTML report with diagnostics, suggestions, and bundle
-            analysis
+            analysis. Press <kbd>ESC</kbd> to close.
           </p>
         </div>
       </div>
