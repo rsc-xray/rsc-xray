@@ -33,12 +33,19 @@
         "message": { "type": "string", "minLength": 1 },
         "loc": {
           "type": "object",
-          "required": ["file", "line", "col"],
+          "required": ["file", "range"],
           "additionalProperties": false,
           "properties": {
             "file": { "type": "string", "minLength": 1 },
-            "line": { "type": "integer", "minimum": 0 },
-            "col": { "type": "integer", "minimum": 0 }
+            "range": {
+              "type": "object",
+              "required": ["from", "to"],
+              "additionalProperties": false,
+              "properties": {
+                "from": { "type": "integer", "minimum": 0 },
+                "to": { "type": "integer", "minimum": 0 }
+              }
+            }
           }
         }
       }
@@ -87,7 +94,8 @@
           "items": { "type": "string", "minLength": 1 }
         },
         "totalBytes": { "type": "number", "minimum": 0 },
-        "cache": { "$ref": "#/definitions/RouteCacheMetadata" }
+        "cache": { "$ref": "#/definitions/RouteCacheMetadata" },
+        "segmentConfig": { "$ref": "#/definitions/RouteSegmentConfig" }
       }
     },
     "BuildInfo": {
@@ -131,12 +139,19 @@
         "message": { "type": "string", "minLength": 1 },
         "loc": {
           "type": "object",
-          "required": ["file", "line", "col"],
+          "required": ["file", "range"],
           "additionalProperties": false,
           "properties": {
             "file": { "type": "string", "minLength": 1 },
-            "line": { "type": "integer", "minimum": 0 },
-            "col": { "type": "integer", "minimum": 0 }
+            "range": {
+              "type": "object",
+              "required": ["from", "to"],
+              "additionalProperties": false,
+              "properties": {
+                "from": { "type": "integer", "minimum": 0 },
+                "to": { "type": "integer", "minimum": 0 }
+              }
+            }
           }
         }
       }
@@ -188,6 +203,40 @@
         },
         "dynamic": { "enum": ["auto", "force-dynamic", "force-static", "error"] },
         "experimentalPpr": { "type": "boolean" }
+      }
+    },
+    "RouteSegmentConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dynamic": { "enum": ["auto", "force-dynamic", "force-static", "error"] },
+        "revalidate": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            { "type": "boolean", "enum": [false] }
+          ]
+        },
+        "fetchCache": {
+          "enum": [
+            "auto",
+            "default-cache",
+            "only-cache",
+            "force-cache",
+            "force-no-store",
+            "default-no-store",
+            "only-no-store"
+          ]
+        },
+        "runtime": { "enum": ["nodejs", "edge"] },
+        "preferredRegion": {
+          "oneOf": [
+            { "type": "string", "minLength": 1 },
+            {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            }
+          ]
+        }
       }
     }
   }

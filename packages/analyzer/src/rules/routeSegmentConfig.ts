@@ -5,7 +5,7 @@ import { createLocationFromNode } from '../lib/diagnosticHelpers.js';
 const ROUTE_SEGMENT_CONFIG_CONFLICT_RULE = 'route-segment-config-conflict';
 
 /** Internal type to track config with AST node positions */
-interface RouteSegmentConfigWithNodes extends RouteSegmentConfig {
+export interface RouteSegmentConfigWithNodes extends RouteSegmentConfig {
   nodes?: {
     dynamic?: ts.Node;
     revalidate?: ts.Node;

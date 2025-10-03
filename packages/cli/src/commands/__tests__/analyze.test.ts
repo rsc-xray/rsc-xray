@@ -76,4 +76,62 @@ describe('analyze command', () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  it('produces JSON-serializable output with route segment config', async () => {
+    const modelWithSegmentConfig: Model = {
+      version: '0.1',
+      routes: [
+        {
+          route: '/products',
+          rootNodeId: 'route:/products',
+          segmentConfig: {
+            dynamic: 'force-dynamic',
+            revalidate: 60,
+          },
+        },
+      ],
+      nodes: {
+        'route:/products': {
+          id: 'route:/products',
+          kind: 'route',
+          name: '/products',
+          children: [],
+        },
+      },
+      build: {
+        nextVersion: '14.2.0',
+        timestamp: '2025-09-20T10:00:00.000Z',
+      },
+    };
+
+    analyzeProjectMock.mockResolvedValueOnce(modelWithSegmentConfig);
+
+    const dir = await mkdtemp(join(tmpdir(), 'scx-cli-analyze-segment-'));
+    try {
+      const outputPath = join(dir, 'model.json');
+      const { analyze } = await import('../analyze');
+
+      const model = await analyze({
+        projectRoot: dir,
+        outputPath,
+        pretty: false,
+      });
+
+      expect(model).toEqual(modelWithSegmentConfig);
+
+      // Verify JSON is valid and can be parsed back
+      const raw = await readFile(outputPath, 'utf8');
+      const parsed = JSON.parse(raw);
+      expect(parsed).toEqual(modelWithSegmentConfig);
+
+      // Ensure no circular references or AST nodes leaked through
+      expect(parsed.routes[0].segmentConfig).not.toHaveProperty('nodes');
+      expect(parsed.routes[0].segmentConfig).toMatchObject({
+        dynamic: 'force-dynamic',
+        revalidate: 60,
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });
