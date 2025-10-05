@@ -321,7 +321,7 @@ export function collectCacheMetadata({ sourceText }: CollectOptions): FileCacheM
     if (ts.isCallExpression(node)) {
       if (isIdentifierWithName(node.expression, 'fetch') && node.arguments.length >= 2) {
         const options = node.arguments[1];
-        if (ts.isObjectLiteralExpression(options)) {
+        if (options && ts.isObjectLiteralExpression(options)) {
           collectCacheFromObjectLiteral(options, metadata);
         }
       } else if (

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as ts from 'typescript';
 import { parseRouteSegmentConfig, detectConfigConflicts, isRouteFile } from '../routeSegmentConfig';
+import { ensureDefined } from '../../testUtils/assert';
 
 function createSourceFile(code: string): ts.SourceFile {
   return ts.createSourceFile('test.tsx', code, ts.ScriptTarget.Latest, true);
@@ -97,10 +98,11 @@ describe('detectConfigConflicts', () => {
     const diagnostics = detectConfigConflicts(source, config, 'app/page.tsx');
 
     expect(diagnostics).toHaveLength(1);
-    expect(diagnostics[0].rule).toBe('route-segment-config-conflict');
-    expect(diagnostics[0].level).toBe('error');
-    expect(diagnostics[0].message).toContain('force-static');
-    expect(diagnostics[0].message).toContain('cookies');
+    const firstDiagnostic = ensureDefined(diagnostics[0]);
+    expect(firstDiagnostic.rule).toBe('route-segment-config-conflict');
+    expect(firstDiagnostic.level).toBe('error');
+    expect(firstDiagnostic.message).toContain('force-static');
+    expect(firstDiagnostic.message).toContain('cookies');
   });
 
   it('detects force-static with headers()', () => {
@@ -115,7 +117,8 @@ describe('detectConfigConflicts', () => {
     const diagnostics = detectConfigConflicts(source, config, 'app/page.tsx');
 
     expect(diagnostics).toHaveLength(1);
-    expect(diagnostics[0].message).toContain('headers');
+    const firstDiagnostic = ensureDefined(diagnostics[0]);
+    expect(firstDiagnostic.message).toContain('headers');
   });
 
   it('detects force-static with searchParams', () => {
@@ -130,7 +133,8 @@ describe('detectConfigConflicts', () => {
     const diagnostics = detectConfigConflicts(source, config, 'app/page.tsx');
 
     expect(diagnostics).toHaveLength(1);
-    expect(diagnostics[0].message).toContain('searchParams');
+    const firstDiagnostic = ensureDefined(diagnostics[0]);
+    expect(firstDiagnostic.message).toContain('searchParams');
   });
 
   it('detects revalidate with force-dynamic conflict', () => {
@@ -142,9 +146,10 @@ describe('detectConfigConflicts', () => {
     const diagnostics = detectConfigConflicts(source, config, 'app/page.tsx');
 
     expect(diagnostics).toHaveLength(1);
-    expect(diagnostics[0].level).toBe('warn');
-    expect(diagnostics[0].message).toContain('revalidate');
-    expect(diagnostics[0].message).toContain('force-dynamic');
+    const firstDiagnostic = ensureDefined(diagnostics[0]);
+    expect(firstDiagnostic.level).toBe('warn');
+    expect(firstDiagnostic.message).toContain('revalidate');
+    expect(firstDiagnostic.message).toContain('force-dynamic');
   });
 
   it('detects edge runtime with Node.js APIs', () => {
@@ -159,9 +164,10 @@ describe('detectConfigConflicts', () => {
     const diagnostics = detectConfigConflicts(source, config, 'app/page.tsx');
 
     expect(diagnostics).toHaveLength(1);
-    expect(diagnostics[0].level).toBe('error');
-    expect(diagnostics[0].message).toContain('edge');
-    expect(diagnostics[0].message).toContain('Node.js');
+    const firstDiagnostic = ensureDefined(diagnostics[0]);
+    expect(firstDiagnostic.level).toBe('error');
+    expect(firstDiagnostic.message).toContain('edge');
+    expect(firstDiagnostic.message).toContain('Node.js');
   });
 
   it('detects edge runtime with node: imports', () => {
@@ -173,7 +179,8 @@ describe('detectConfigConflicts', () => {
     const diagnostics = detectConfigConflicts(source, config, 'app/page.tsx');
 
     expect(diagnostics).toHaveLength(1);
-    expect(diagnostics[0].message).toContain('Node.js');
+    const firstDiagnostic = ensureDefined(diagnostics[0]);
+    expect(firstDiagnostic.message).toContain('Node.js');
   });
 
   it('detects force-no-store with revalidate conflict', () => {
@@ -185,9 +192,10 @@ describe('detectConfigConflicts', () => {
     const diagnostics = detectConfigConflicts(source, config, 'app/page.tsx');
 
     expect(diagnostics).toHaveLength(1);
-    expect(diagnostics[0].level).toBe('warn');
-    expect(diagnostics[0].message).toContain('force-no-store');
-    expect(diagnostics[0].message).toContain('revalidate');
+    const firstDiagnostic = ensureDefined(diagnostics[0]);
+    expect(firstDiagnostic.level).toBe('warn');
+    expect(firstDiagnostic.message).toContain('force-no-store');
+    expect(firstDiagnostic.message).toContain('revalidate');
   });
 
   it('allows force-static without dynamic APIs', () => {

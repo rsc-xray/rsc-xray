@@ -7,7 +7,7 @@ function shouldCollect(): boolean {
   if (typeof window === 'undefined') {
     return false;
   }
-  if (process.env.NEXT_PUBLIC_SCX_COLLECT_HYDRATION === '0') {
+  if (process.env['NEXT_PUBLIC_SCX_COLLECT_HYDRATION'] === '0') {
     return false;
   }
   return true;

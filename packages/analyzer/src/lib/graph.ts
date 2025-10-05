@@ -68,6 +68,9 @@ function deriveRouteFromAppFile(appDir: string, filePath: string): string | unde
   }
 
   const fileName = segments[segments.length - 1];
+  if (!fileName) {
+    return undefined;
+  }
   const baseName = fileName.split('.')[0];
 
   if (baseName !== 'page') {
@@ -341,11 +344,13 @@ export async function buildGraph({
         })()
       : undefined;
 
+    const nodeName = meta.filePath.split('/').pop();
+
     nodes[meta.id] = {
       id: meta.id,
       kind: meta.kind,
       file: meta.filePath,
-      name: meta.filePath.split('/').pop(),
+      ...(nodeName ? { name: nodeName } : {}),
       children: meta.imports,
       ...(diagnostics ? { diagnostics } : {}),
       ...(bundle && bundle.totalBytes > 0 ? { bytes: bundle.totalBytes } : {}),

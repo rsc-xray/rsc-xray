@@ -65,7 +65,12 @@ export async function printManifest({
   distDir,
   output = DEFAULT_OUTPUT,
 }: PrintManifestOptions): Promise<void> {
-  const { routes } = await readManifests({ projectRoot, distDir });
+  const manifestOptions = { projectRoot } as Parameters<typeof readManifests>[0];
+  if (distDir) {
+    manifestOptions.distDir = distDir;
+  }
+
+  const { routes } = await readManifests(manifestOptions);
 
   const lines = routes
     .sort((a, b) => a.route.localeCompare(b.route))

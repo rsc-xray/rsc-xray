@@ -2,6 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { analyze } from '../analyze.js';
 import type { LspAnalysisRequest } from '../types.js';
 
+function ensureDefined<T>(value: T | null | undefined, message?: string): T {
+  if (value === undefined || value === null) {
+    throw new Error(message ?? 'Expected value to be defined');
+  }
+  return value;
+}
+
 describe('OSS LSP Server - Basic Wrapper Tests', () => {
   describe('Basic Analysis', () => {
     it('should analyze simple valid code', async () => {
@@ -62,7 +69,8 @@ describe('OSS LSP Server - Basic Wrapper Tests', () => {
 
       expect(response.error).toBeUndefined();
       expect(response.diagnostics.length).toBeGreaterThan(0);
-      expect(response.diagnostics[0].rule).toBe('client-forbidden-import');
+      const firstDiagnostic = ensureDefined(response.diagnostics[0]);
+      expect(firstDiagnostic.rule).toBe('client-forbidden-import');
     });
 
     it('should detect missing Suspense boundaries', async () => {

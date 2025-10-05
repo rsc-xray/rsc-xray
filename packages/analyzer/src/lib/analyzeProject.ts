@@ -248,10 +248,18 @@ function formatFileList(files: string[]): string {
     return '';
   }
   if (files.length === 1) {
-    return files[0]!.replace(/\\/g, '/');
+    const [only] = files;
+    return only ? only.replace(/\\/g, '/') : '';
   }
   if (files.length === 2) {
-    const [first, second] = files;
+    const first = files[0];
+    const second = files[1];
+    if (!first || !second) {
+      return files
+        .filter((file): file is string => Boolean(file))
+        .map((file) => file.replace(/\\/g, '/'))
+        .join(' and ');
+    }
     return `${first.replace(/\\/g, '/')} and ${second.replace(/\\/g, '/')}`;
   }
   const last = files[files.length - 1]!.replace(/\\/g, '/');
@@ -412,7 +420,7 @@ async function readNextVersion(projectRoot: string): Promise<string> {
       dependencies?: Record<string, string>;
       devDependencies?: Record<string, string>;
     };
-    return pkg.dependencies?.next ?? pkg.devDependencies?.next ?? 'unknown';
+    return pkg.dependencies?.['next'] ?? pkg.devDependencies?.['next'] ?? 'unknown';
   } catch {
     return 'unknown';
   }

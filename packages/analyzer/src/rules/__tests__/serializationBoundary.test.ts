@@ -1,8 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { analyzeSerializationBoundary } from '../serializationBoundary';
+import { ensureDefined } from '../../testUtils/assert';
 
 describe('Serialization Boundary Analyzer', () => {
   const clientComponents = new Set(['ClientButton', 'ClientCard', 'ClientComponent']);
+  const getFirstDiagnostic = (diagnostics: ReturnType<typeof analyzeSerializationBoundary>) =>
+    ensureDefined(diagnostics[0]);
+  const getDiagnosticAt = (
+    diagnostics: ReturnType<typeof analyzeSerializationBoundary>,
+    index: number
+  ) => ensureDefined(diagnostics[index]);
 
   describe('Arrow Functions', () => {
     it('detects arrow function props', () => {
@@ -20,11 +27,12 @@ describe('Serialization Boundary Analyzer', () => {
       });
 
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].rule).toBe('server-client-serialization-violation');
-      expect(diagnostics[0].level).toBe('error');
-      expect(diagnostics[0].message).toContain('arrow function');
-      expect(diagnostics[0].message).toContain('onClick');
-      expect(diagnostics[0].message).toContain('Server Actions');
+      const diagnostic = getFirstDiagnostic(diagnostics);
+      expect(diagnostic.rule).toBe('server-client-serialization-violation');
+      expect(diagnostic.level).toBe('error');
+      expect(diagnostic.message).toContain('arrow function');
+      expect(diagnostic.message).toContain('onClick');
+      expect(diagnostic.message).toContain('Server Actions');
     });
 
     it('detects inline arrow functions', () => {
@@ -41,7 +49,7 @@ describe('Serialization Boundary Analyzer', () => {
       });
 
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].message).toContain('arrow function');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('arrow function');
     });
   });
 
@@ -61,7 +69,7 @@ describe('Serialization Boundary Analyzer', () => {
       });
 
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].message).toContain('function');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('function');
     });
 
     it('detects inline function expressions', () => {
@@ -78,7 +86,7 @@ describe('Serialization Boundary Analyzer', () => {
       });
 
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].message).toContain('function');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('function');
     });
   });
 
@@ -98,8 +106,8 @@ describe('Serialization Boundary Analyzer', () => {
       });
 
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].message).toContain('Date instance');
-      expect(diagnostics[0].message).toContain('ISO string');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('Date instance');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('ISO string');
     });
 
     it('detects inline new Date()', () => {
@@ -116,7 +124,7 @@ describe('Serialization Boundary Analyzer', () => {
       });
 
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].message).toContain('Date instance');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('Date instance');
     });
   });
 
@@ -136,8 +144,8 @@ describe('Serialization Boundary Analyzer', () => {
       });
 
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].message).toContain('Map instance');
-      expect(diagnostics[0].message).toContain('array or plain object');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('Map instance');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('array or plain object');
     });
 
     it('detects Set instances', () => {
@@ -155,7 +163,7 @@ describe('Serialization Boundary Analyzer', () => {
       });
 
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].message).toContain('Set instance');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('Set instance');
     });
   });
 
@@ -175,8 +183,8 @@ describe('Serialization Boundary Analyzer', () => {
       });
 
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].message).toContain('Promise');
-      expect(diagnostics[0].message).toContain('Await');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('Promise');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('Await');
     });
   });
 
@@ -196,7 +204,7 @@ describe('Serialization Boundary Analyzer', () => {
       });
 
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].message).toContain('Symbol');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('Symbol');
     });
   });
 
@@ -220,8 +228,8 @@ describe('Serialization Boundary Analyzer', () => {
       });
 
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].message).toContain('class instance');
-      expect(diagnostics[0].message).toContain('plain object');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('class instance');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('plain object');
     });
   });
 
@@ -241,7 +249,7 @@ describe('Serialization Boundary Analyzer', () => {
       });
 
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].message).toContain('React element');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('React element');
     });
 
     it('allows React elements in children prop', () => {
@@ -290,9 +298,9 @@ describe('Serialization Boundary Analyzer', () => {
       });
 
       expect(diagnostics).toHaveLength(3);
-      expect(diagnostics[0].message).toContain('arrow function');
-      expect(diagnostics[1].message).toContain('Date instance');
-      expect(diagnostics[2].message).toContain('Map instance');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('arrow function');
+      expect(getDiagnosticAt(diagnostics, 1).message).toContain('Date instance');
+      expect(getDiagnosticAt(diagnostics, 2).message).toContain('Map instance');
     });
   });
 
@@ -337,7 +345,7 @@ describe('Serialization Boundary Analyzer', () => {
       });
 
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].message).toContain('ClientButton');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('ClientButton');
     });
   });
 
@@ -424,9 +432,9 @@ describe('Serialization Boundary Analyzer', () => {
       });
 
       expect(diagnostics).toHaveLength(3);
-      expect(diagnostics[0].message).toContain('Server Actions');
-      expect(diagnostics[1].message).toContain('ISO string');
-      expect(diagnostics[2].message).toContain('array or plain object');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('Server Actions');
+      expect(getDiagnosticAt(diagnostics, 1).message).toContain('ISO string');
+      expect(getDiagnosticAt(diagnostics, 2).message).toContain('array or plain object');
     });
 
     it('handles nested JSX', () => {
@@ -450,7 +458,7 @@ describe('Serialization Boundary Analyzer', () => {
       });
 
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].message).toContain('arrow function');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('arrow function');
     });
 
     it('reports correct file location', () => {
@@ -466,10 +474,12 @@ describe('Serialization Boundary Analyzer', () => {
       });
 
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0]?.loc?.file).toBe('app/page.tsx');
-      expect(diagnostics[0]?.loc?.range).toBeDefined();
-      expect(diagnostics[0]?.loc?.range?.from).toBeGreaterThanOrEqual(0);
-      expect(diagnostics[0]?.loc?.range?.to).toBeGreaterThan(diagnostics[0]?.loc?.range?.from || 0);
+      expect(getFirstDiagnostic(diagnostics)?.loc?.file).toBe('app/page.tsx');
+      expect(getFirstDiagnostic(diagnostics)?.loc?.range).toBeDefined();
+      expect(getFirstDiagnostic(diagnostics)?.loc?.range?.from).toBeGreaterThanOrEqual(0);
+      expect(getFirstDiagnostic(diagnostics)?.loc?.range?.to).toBeGreaterThan(
+        getFirstDiagnostic(diagnostics)?.loc?.range?.from || 0
+      );
     });
   });
 
@@ -491,7 +501,7 @@ describe('Serialization Boundary Analyzer', () => {
       });
 
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].message).toContain('arrow function');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('arrow function');
     });
 
     it('handles conditional props', () => {
@@ -539,8 +549,8 @@ describe('Serialization Boundary Analyzer', () => {
       });
 
       expect(diagnostics).toHaveLength(2);
-      expect(diagnostics[0].message).toContain('arrow function');
-      expect(diagnostics[1].message).toContain('function');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('arrow function');
+      expect(getDiagnosticAt(diagnostics, 1).message).toContain('function');
     });
   });
 
@@ -622,7 +632,7 @@ describe('Serialization Boundary Analyzer', () => {
 
       // We track the first assignment
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].message).toContain('arrow function');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('arrow function');
     });
 
     it('handles multiple components in same file', () => {
@@ -650,8 +660,8 @@ describe('Serialization Boundary Analyzer', () => {
       });
 
       expect(diagnostics).toHaveLength(2);
-      expect(diagnostics[0].message).toContain('arrow function');
-      expect(diagnostics[1].message).toContain('function');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('arrow function');
+      expect(getDiagnosticAt(diagnostics, 1).message).toContain('function');
     });
 
     it('handles Date instances with various constructors', () => {
@@ -730,7 +740,7 @@ describe('Serialization Boundary Analyzer', () => {
       // new RegExp() is detected as class instance
       // RegExp literals (/test/) are not detected in Phase 1
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].message).toContain('class instance');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('class instance');
     });
 
     it('handles Error instances', () => {
@@ -748,7 +758,7 @@ describe('Serialization Boundary Analyzer', () => {
       });
 
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].message).toContain('class instance');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('class instance');
     });
 
     it('handles async functions', () => {
@@ -767,7 +777,7 @@ describe('Serialization Boundary Analyzer', () => {
 
       // Async arrow functions are still arrow functions
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].message).toContain('arrow function');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('arrow function');
     });
 
     it('handles generator functions', () => {
@@ -786,7 +796,7 @@ describe('Serialization Boundary Analyzer', () => {
 
       // Generator functions are still functions
       expect(diagnostics).toHaveLength(1);
-      expect(diagnostics[0].message).toContain('function');
+      expect(getFirstDiagnostic(diagnostics).message).toContain('function');
     });
 
     it('handles mixed violations with proper messages', () => {

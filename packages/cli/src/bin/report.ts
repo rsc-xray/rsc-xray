@@ -14,14 +14,30 @@ function parseArgs(argv: string[]): CliOptions {
   const options: CliOptions = {};
 
   for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
+    const rawArg = argv[index];
+    if (!rawArg) {
+      continue;
+    }
+    const arg = rawArg;
     switch (arg) {
       case '--model': {
-        options.modelPath = argv[++index];
+        const value = argv[index + 1];
+        if (value) {
+          options.modelPath = value;
+          index += 1;
+        } else {
+          console.warn('--model requires a file path argument');
+        }
         break;
       }
       case '--out': {
-        options.outputPath = argv[++index];
+        const value = argv[index + 1];
+        if (value) {
+          options.outputPath = value;
+          index += 1;
+        } else {
+          console.warn('--out requires a file path argument');
+        }
         break;
       }
       case '--help':
@@ -55,7 +71,7 @@ async function main() {
     process.exit(0);
   }
 
-  const baseDir = process.env.INIT_CWD ?? cwd();
+  const baseDir = process.env['INIT_CWD'] ?? cwd();
   const modelPath = parsed.modelPath ? resolve(baseDir, parsed.modelPath) : undefined;
   const outputPath = parsed.outputPath ? resolve(baseDir, parsed.outputPath) : undefined;
 

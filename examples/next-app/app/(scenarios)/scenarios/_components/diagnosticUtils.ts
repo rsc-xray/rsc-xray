@@ -12,7 +12,8 @@ export function getOffsetFromPosition(
   let offset = 0;
 
   for (let i = 0; i < line - 1 && i < lines.length; i++) {
-    offset += lines[i].length + 1; // +1 for newline
+    const currentLine = lines[i] ?? '';
+    offset += currentLine.length + 1; // +1 for newline
   }
 
   return offset + column;
@@ -36,7 +37,7 @@ export function findTextDiagnostic(
     to: index + searchText.length,
     severity,
     message,
-    source,
+    ...(source ? { source } : {}),
   };
 }
 
@@ -62,7 +63,7 @@ export function findAllTextDiagnostics(
       to: index + searchText.length,
       severity,
       message,
-      source,
+      ...(source ? { source } : {}),
     });
 
     startIndex = index + searchText.length;
@@ -93,6 +94,6 @@ export function createLineDiagnostic(
     to: Math.min(to, code.length),
     severity,
     message,
-    source,
+    ...(source ? { source } : {}),
   };
 }

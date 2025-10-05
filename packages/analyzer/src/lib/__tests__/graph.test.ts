@@ -7,6 +7,7 @@ import { buildGraph } from '../graph';
 import type { Suggestion } from '@rsc-xray/schemas';
 import type { Diagnostic } from '@rsc-xray/schemas';
 import { classifyFiles } from '../classifyFiles';
+import { ensureDefined } from '../../testUtils/assert';
 
 async function collectTsFiles(root: string): Promise<string[]> {
   async function walk(dir: string): Promise<string[]> {
@@ -102,6 +103,7 @@ describe('buildGraph', () => {
       children: ['module:app/(shop)/products/page.tsx'],
     });
 
-    expect(graph.nodes['module:app/components/ServerMessage.tsx'].diagnostics).toBeUndefined();
+    const serverMessageNode = ensureDefined(graph.nodes['module:app/components/ServerMessage.tsx']);
+    expect(serverMessageNode.diagnostics).toBeUndefined();
   });
 });

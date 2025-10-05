@@ -1,5 +1,5 @@
 import * as ts from 'typescript';
-import type { RouteSegmentConfig, Diagnostic } from '@rsc-xray/schemas';
+import type { RouteSegmentConfig, Diagnostic, RouteSegmentFetchCache } from '@rsc-xray/schemas';
 import { createLocationFromNode } from '../lib/diagnosticHelpers.js';
 
 const ROUTE_SEGMENT_CONFIG_CONFLICT_RULE = 'route-segment-config-conflict';
@@ -86,7 +86,7 @@ export function parseRouteSegmentConfig(
                   'only-no-store',
                 ].includes(value)
               ) {
-                config.fetchCache = value as RouteSegmentConfig['fetchCache'];
+                config.fetchCache = value as RouteSegmentFetchCache;
                 config.nodes!.fetchCache = node;
                 foundAny = true;
               }
