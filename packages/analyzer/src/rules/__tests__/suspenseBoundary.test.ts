@@ -78,10 +78,11 @@ describe('Suspense Boundary Analyzer', () => {
       const suggestions = detectSuspenseBoundaryIssues(sourceFile, 'test.tsx');
 
       expect(suggestions).toHaveLength(1);
-      expect(suggestions[0].rule).toBe('suspense-boundary-missing');
+      const suggestion = firstSuggestion(suggestions);
+      expect(suggestion.rule).toBe('suspense-boundary-missing');
       // Ensure diagnostic points to JSX element, not the entire function
-      expect(suggestions[0].loc).toBeDefined();
-      const { range } = suggestions[0].loc!;
+      expect(suggestion.loc).toBeDefined();
+      const { range } = ensureDefined(suggestion.loc);
       const highlightedCode = source.slice(range.from, range.to);
       expect(highlightedCode).toContain('<div>');
       expect(highlightedCode).not.toContain('export default async function');
@@ -102,7 +103,7 @@ describe('Suspense Boundary Analyzer', () => {
 
       expect(suggestions).toHaveLength(1);
       // Should highlight JSX, not function signature (parentheses allow multiline)
-      const { range } = suggestions[0].loc!;
+      const { range } = ensureDefined(firstSuggestion(suggestions).loc);
       const highlightedCode = source.slice(range.from, range.to);
       expect(highlightedCode).toContain('<div>');
       expect(highlightedCode).not.toContain('async function Page');

@@ -11,6 +11,7 @@ import { analyzeSerializationBoundary } from './rules/serializationBoundary.js';
 import { detectSuspenseBoundaryIssues } from './rules/suspenseBoundary.js';
 import { detectReact19CacheOpportunities } from './rules/react19Cache.js';
 import { detectClientSizeIssues } from './rules/clientSizeThreshold.js';
+import type { SizeThresholdConfig } from './rules/clientSizeThreshold.js';
 import { analyzeClientFileForForbiddenImports } from './rules/clientForbiddenImports.js';
 import { detectConfigConflicts } from './rules/routeSegmentConfig.js';
 import type { ClientComponentBundle } from './lib/clientBundles.js';
@@ -179,10 +180,12 @@ export function analyzeLspRequest(request: LspAnalysisRequest): LspAnalysisRespo
   ) {
     if (context.clientBundles && context.clientBundles.length > 0) {
       try {
-        const results = detectClientSizeIssues(context.clientBundles, {
-          sourceFile,
-          route: context.route,
-        });
+        const sizeConfig: SizeThresholdConfig = { sourceFile };
+        if (context.route) {
+          sizeConfig.route = context.route;
+        }
+
+        const results = detectClientSizeIssues(context.clientBundles, sizeConfig);
         diagnostics.push(...results);
         rulesExecuted.push('client-component-oversized', 'duplicate-dependencies');
       } catch (error) {
