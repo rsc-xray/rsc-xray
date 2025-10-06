@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { analyzeLspRequest, analyzeScenario, createSourceFile, shouldAnalyzeFile } from '../lsp';
+import { ensureDefined } from '../testUtils/assert';
 
 describe('LSP API', () => {
   describe('createSourceFile', () => {
@@ -157,7 +158,8 @@ describe('LSP API', () => {
       });
 
       expect(result.diagnostics.length).toBeGreaterThan(0);
-      expect(result.diagnostics[0].rule).toBe('client-forbidden-import');
+      const firstDiagnostic = ensureDefined(result.diagnostics[0]);
+      expect(firstDiagnostic.rule).toBe('client-forbidden-import');
     });
 
     it('should allow safe imports in client components', () => {
@@ -268,7 +270,8 @@ describe('LSP API', () => {
       );
 
       expect(diagnostics.length).toBeGreaterThan(0);
-      expect(diagnostics[0].rule).toBe('client-forbidden-import');
+      const firstDiagnostic = ensureDefined(diagnostics[0]);
+      expect(firstDiagnostic.rule).toBe('client-forbidden-import');
     });
   });
 

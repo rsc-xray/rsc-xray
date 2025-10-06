@@ -17,22 +17,50 @@ function parseArgs(argv: string[]): CliOptions {
   const options: CliOptions = {};
 
   for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
+    const rawArg = argv[index];
+    if (!rawArg) {
+      continue;
+    }
+    const arg = rawArg;
     switch (arg) {
       case '--project': {
-        options.projectRoot = argv[++index];
+        const value = argv[index + 1];
+        if (value) {
+          options.projectRoot = value;
+          index += 1;
+        } else {
+          console.warn('--project requires a path argument');
+        }
         break;
       }
       case '--dist': {
-        options.distDir = argv[++index];
+        const value = argv[index + 1];
+        if (value) {
+          options.distDir = value;
+          index += 1;
+        } else {
+          console.warn('--dist requires a directory argument');
+        }
         break;
       }
       case '--app': {
-        options.appDir = argv[++index];
+        const value = argv[index + 1];
+        if (value) {
+          options.appDir = value;
+          index += 1;
+        } else {
+          console.warn('--app requires a directory argument');
+        }
         break;
       }
       case '--out': {
-        options.outputPath = argv[++index];
+        const value = argv[index + 1];
+        if (value) {
+          options.outputPath = value;
+          index += 1;
+        } else {
+          console.warn('--out requires a file path argument');
+        }
         break;
       }
       case '--pretty': {
@@ -76,7 +104,7 @@ async function main() {
     process.exit(0);
   }
 
-  const baseDir = process.env.INIT_CWD ?? cwd();
+  const baseDir = process.env['INIT_CWD'] ?? cwd();
   const projectRoot = resolve(baseDir, parsed.projectRoot ?? '.');
   const rawOutputPath = parsed.outputPath;
 
@@ -88,13 +116,22 @@ async function main() {
   }
 
   try {
-    await analyze({
+    const options = {
       projectRoot,
       outputPath: resolve(baseDir, rawOutputPath),
-      distDir: parsed.distDir,
-      appDir: parsed.appDir,
-      pretty: parsed.pretty,
-    });
+    } as Parameters<typeof analyze>[0];
+
+    if (parsed.distDir) {
+      options.distDir = parsed.distDir;
+    }
+    if (parsed.appDir) {
+      options.appDir = parsed.appDir;
+    }
+    if (typeof parsed.pretty === 'boolean') {
+      options.pretty = parsed.pretty;
+    }
+
+    await analyze(options);
   } catch (error) {
     console.error('Failed to analyze project:', (error as Error).message);
     process.exitCode = 1;

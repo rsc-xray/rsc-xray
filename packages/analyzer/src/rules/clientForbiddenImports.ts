@@ -83,13 +83,14 @@ function analyzeSource({
     if (
       ts.isCallExpression(node) &&
       ts.isIdentifier(node.expression) &&
-      node.expression.text === 'require' &&
-      node.arguments.length > 0 &&
-      ts.isStringLiteral(node.arguments[0])
+      node.expression.text === 'require'
     ) {
-      const moduleName = node.arguments[0].text;
-      if (isForbiddenModule(moduleName, modules)) {
-        diagnostics.push(createDiagnostic(sourceFile, node.arguments[0], moduleName));
+      const [firstArg] = node.arguments;
+      if (firstArg && ts.isStringLiteral(firstArg)) {
+        const moduleName = firstArg.text;
+        if (isForbiddenModule(moduleName, modules)) {
+          diagnostics.push(createDiagnostic(sourceFile, firstArg, moduleName));
+        }
       }
     }
 
@@ -115,7 +116,8 @@ export function analyzeClientFileForForbiddenImports({
   if (classification.kind !== 'client') {
     return [];
   }
-  return analyzeSource({ fileName, sourceText, forbiddenModules });
+  const options = forbiddenModules ? { forbiddenModules } : {};
+  return analyzeSource({ fileName, sourceText, ...options });
 }
 
 export interface CollectForbiddenImportsOptions {
@@ -130,11 +132,12 @@ export function collectForbiddenImportDiagnostics({
   const diagnostics: Diagnostic[] = [];
   for (const file of files) {
     if (file.kind !== 'client') continue;
+    const options = forbiddenModules ? { forbiddenModules } : {};
     diagnostics.push(
       ...analyzeSource({
         fileName: file.filePath,
         sourceText: file.sourceText,
-        forbiddenModules,
+        ...options,
       })
     );
   }

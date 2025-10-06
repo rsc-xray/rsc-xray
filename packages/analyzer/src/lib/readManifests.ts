@@ -5,6 +5,7 @@ import type {
   NextAppBuildManifest,
   NextBuildManifest,
   ParsedManifests,
+  ParsedRouteAsset,
 } from '../types/next-manifest';
 import type { RouteCacheMetadata } from '@rsc-xray/schemas';
 
@@ -249,12 +250,21 @@ export async function readManifests({
         chunkSizeCache
       );
 
-      return {
+      const routeEntry: ParsedRouteAsset = {
         route,
         chunks: chunkArray,
-        totalBytes,
-        cache: routeCacheMeta.get(route),
       };
+
+      if (typeof totalBytes !== 'undefined') {
+        routeEntry.totalBytes = totalBytes;
+      }
+
+      const cacheMetadata = routeCacheMeta.get(route);
+      if (cacheMetadata) {
+        routeEntry.cache = cacheMetadata;
+      }
+
+      return routeEntry;
     })
   );
 

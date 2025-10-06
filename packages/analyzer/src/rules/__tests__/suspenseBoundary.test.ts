@@ -2,12 +2,20 @@ import { describe, it, expect } from 'vitest';
 import * as ts from 'typescript';
 
 import { detectSuspenseBoundaryIssues } from '../suspenseBoundary';
+import { ensureDefined } from '../../testUtils/assert';
 
 function createSourceFile(source: string): ts.SourceFile {
   return ts.createSourceFile('test.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 }
 
 describe('Suspense Boundary Analyzer', () => {
+  const firstSuggestion = (suggestions: ReturnType<typeof detectSuspenseBoundaryIssues>) =>
+    ensureDefined(suggestions[0]);
+  const suggestionAt = (
+    suggestions: ReturnType<typeof detectSuspenseBoundaryIssues>,
+    index: number
+  ) => ensureDefined(suggestions[index]);
+
   describe('async components without Suspense', () => {
     it('detects async function component without Suspense boundary', () => {
       const source = `
@@ -21,9 +29,9 @@ describe('Suspense Boundary Analyzer', () => {
       const suggestions = detectSuspenseBoundaryIssues(sourceFile, 'test.tsx');
 
       expect(suggestions).toHaveLength(1);
-      expect(suggestions[0].rule).toBe('suspense-boundary-missing');
-      expect(suggestions[0].level).toBe('warn');
-      expect(suggestions[0].message).toContain('1 await expression');
+      expect(firstSuggestion(suggestions).rule).toBe('suspense-boundary-missing');
+      expect(firstSuggestion(suggestions).level).toBe('warn');
+      expect(firstSuggestion(suggestions).message).toContain('1 await expression');
     });
 
     it('detects arrow function component without Suspense boundary', () => {
@@ -38,7 +46,7 @@ describe('Suspense Boundary Analyzer', () => {
       const suggestions = detectSuspenseBoundaryIssues(sourceFile, 'test.tsx');
 
       expect(suggestions).toHaveLength(1);
-      expect(suggestions[0].rule).toBe('suspense-boundary-missing');
+      expect(firstSuggestion(suggestions).rule).toBe('suspense-boundary-missing');
     });
 
     it('detects default export arrow function without Suspense', () => {
@@ -53,7 +61,7 @@ describe('Suspense Boundary Analyzer', () => {
       const suggestions = detectSuspenseBoundaryIssues(sourceFile, 'test.tsx');
 
       expect(suggestions).toHaveLength(1);
-      expect(suggestions[0].rule).toBe('suspense-boundary-missing');
+      expect(firstSuggestion(suggestions).rule).toBe('suspense-boundary-missing');
     });
   });
 
@@ -127,11 +135,11 @@ describe('Suspense Boundary Analyzer', () => {
       const suggestions = detectSuspenseBoundaryIssues(sourceFile, 'test.tsx');
 
       expect(suggestions).toHaveLength(2);
-      expect(suggestions[0].rule).toBe('suspense-boundary-missing');
-      expect(suggestions[0].message).toContain('3 await expressions');
-      expect(suggestions[1].rule).toBe('suspense-boundary-opportunity');
-      expect(suggestions[1].level).toBe('info');
-      expect(suggestions[1].message).toContain('parallel Suspense boundaries');
+      expect(firstSuggestion(suggestions).rule).toBe('suspense-boundary-missing');
+      expect(firstSuggestion(suggestions).message).toContain('3 await expressions');
+      expect(suggestionAt(suggestions, 1).rule).toBe('suspense-boundary-opportunity');
+      expect(suggestionAt(suggestions, 1).level).toBe('info');
+      expect(suggestionAt(suggestions, 1).message).toContain('parallel Suspense boundaries');
     });
 
     it('counts only top-level awaits, not nested function awaits', () => {
@@ -152,7 +160,7 @@ describe('Suspense Boundary Analyzer', () => {
       const suggestions = detectSuspenseBoundaryIssues(sourceFile, 'test.tsx');
 
       expect(suggestions).toHaveLength(1);
-      expect(suggestions[0].message).toContain('1 await expression');
+      expect(firstSuggestion(suggestions).message).toContain('1 await expression');
     });
   });
 
@@ -249,11 +257,13 @@ describe('Suspense Boundary Analyzer', () => {
       const sourceFile = createSourceFile(source);
       const suggestions = detectSuspenseBoundaryIssues(sourceFile, 'test.tsx');
 
-      expect(suggestions[0]?.loc).toBeDefined();
-      expect(suggestions[0]?.loc?.file).toBe('test.tsx');
-      expect(suggestions[0]?.loc?.range).toBeDefined();
-      expect(suggestions[0]?.loc?.range?.from).toBeGreaterThanOrEqual(0);
-      expect(suggestions[0]?.loc?.range?.to).toBeGreaterThan(suggestions[0]?.loc?.range?.from || 0);
+      expect(firstSuggestion(suggestions)?.loc).toBeDefined();
+      expect(firstSuggestion(suggestions)?.loc?.file).toBe('test.tsx');
+      expect(firstSuggestion(suggestions)?.loc?.range).toBeDefined();
+      expect(firstSuggestion(suggestions)?.loc?.range?.from).toBeGreaterThanOrEqual(0);
+      expect(firstSuggestion(suggestions)?.loc?.range?.to).toBeGreaterThan(
+        firstSuggestion(suggestions)?.loc?.range?.from || 0
+      );
     });
 
     it('handles components with both async keyword and await', () => {
@@ -269,8 +279,8 @@ describe('Suspense Boundary Analyzer', () => {
       const suggestions = detectSuspenseBoundaryIssues(sourceFile, 'test.tsx');
 
       expect(suggestions).toHaveLength(2);
-      expect(suggestions[0].rule).toBe('suspense-boundary-missing');
-      expect(suggestions[1].rule).toBe('suspense-boundary-opportunity');
+      expect(firstSuggestion(suggestions).rule).toBe('suspense-boundary-missing');
+      expect(suggestionAt(suggestions, 1).rule).toBe('suspense-boundary-opportunity');
     });
 
     it('handles multiple exported components', () => {
@@ -312,7 +322,7 @@ describe('Suspense Boundary Analyzer', () => {
       const suggestions = detectSuspenseBoundaryIssues(sourceFile, 'test.tsx');
 
       expect(suggestions).toHaveLength(1);
-      expect(suggestions[0].rule).toBe('suspense-boundary-missing');
+      expect(firstSuggestion(suggestions).rule).toBe('suspense-boundary-missing');
     });
 
     it('passes for properly structured streaming component', () => {

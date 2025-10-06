@@ -7,9 +7,9 @@ import { waitForPort } from '../tests/utils/waitForPort';
 import treeKill from 'tree-kill';
 import { getAvailablePort } from '../tests/utils/getAvailablePort';
 
-const HOST = process.env.SCX_LH_HOST ?? '127.0.0.1';
+const HOST = process.env['SCX_LH_HOST'] ?? '127.0.0.1';
 const REQUEST_TIMEOUT_MS = 45_000;
-const PERFORMANCE_THRESHOLD = Number.parseFloat(process.env.SCX_LH_MIN_SCORE ?? '0.5');
+const PERFORMANCE_THRESHOLD = Number.parseFloat(process.env['SCX_LH_MIN_SCORE'] ?? '0.5');
 const exampleRoot = path.resolve(__dirname, '..');
 const require = createRequire(import.meta.url);
 const nextCli = require.resolve('next/dist/bin/next');
@@ -60,17 +60,16 @@ async function runLighthouseCli(targetUrl: string): Promise<{ score: number; tbt
   }
 
   const tbt = report.audits?.['total-blocking-time']?.numericValue;
-  return { score, tbt: typeof tbt === 'number' ? tbt : undefined };
+  return typeof tbt === 'number' ? { score, tbt } : { score };
 }
 
 async function run(): Promise<void> {
-  const preferredPortEnv = process.env.SCX_LH_PORT
-    ? Number.parseInt(process.env.SCX_LH_PORT, 10)
-    : undefined;
+  const portEnv = process.env['SCX_LH_PORT'];
+  const preferredPortEnv = portEnv ? Number.parseInt(portEnv, 10) : undefined;
   const port = await getAvailablePort(
     preferredPortEnv && Number.isFinite(preferredPortEnv) ? [preferredPortEnv, 3100] : undefined
   );
-  const targetUrl = process.env.SCX_LH_URL ?? `http://${HOST}:${port}/products/1`;
+  const targetUrl = process.env['SCX_LH_URL'] ?? `http://${HOST}:${port}/products/1`;
 
   const server = spawn(
     process.execPath,

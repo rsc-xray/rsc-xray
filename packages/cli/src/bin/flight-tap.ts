@@ -20,23 +20,49 @@ function parseArgs(argv: string[]): ParsedArgs {
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    if ((arg === '--url' || arg === '-u') && argv[i + 1]) {
-      url = argv[++i];
-    } else if ((arg === '--route' || arg === '-r') && argv[i + 1]) {
-      route = argv[++i];
-    } else if ((arg === '--out' || arg === '-o') && argv[i + 1]) {
-      out = argv[++i];
-    } else if ((arg === '--timeout' || arg === '--timeout-ms') && argv[i + 1]) {
-      const value = Number(argv[++i]);
-      if (Number.isFinite(value) && value >= 0) {
-        timeoutMs = Math.floor(value);
+    if (arg === '--url' || arg === '-u') {
+      const value = argv[i + 1];
+      if (value) {
+        url = value;
+        i += 1;
+      }
+    } else if (arg === '--route' || arg === '-r') {
+      const value = argv[i + 1];
+      if (value) {
+        route = value;
+        i += 1;
+      }
+    } else if (arg === '--out' || arg === '-o') {
+      const value = argv[i + 1];
+      if (value) {
+        out = value;
+        i += 1;
+      }
+    } else if (arg === '--timeout' || arg === '--timeout-ms') {
+      const raw = argv[i + 1];
+      if (raw) {
+        const value = Number(raw);
+        if (Number.isFinite(value) && value >= 0) {
+          timeoutMs = Math.floor(value);
+        }
+        i += 1;
       }
     } else if (arg === '--help' || arg === '-h') {
       return { help: true, url };
     }
   }
 
-  return { url, route, out, timeoutMs };
+  const result: ParsedArgs = { url };
+  if (route) {
+    result.route = route;
+  }
+  if (out) {
+    result.out = out;
+  }
+  if (typeof timeoutMs === 'number') {
+    result.timeoutMs = timeoutMs;
+  }
+  return result;
 }
 
 async function main() {
@@ -49,16 +75,24 @@ async function main() {
   }
 
   try {
-    const result = await flightTap({
+    const tapOptions = {
       url: parsed.url,
-      route: parsed.route,
-      timeoutMs: parsed.timeoutMs,
-    });
-    if (parsed.out) {
+    } as Parameters<typeof flightTap>[0];
+
+    if (parsed.route) {
+      tapOptions.route = parsed.route;
+    }
+    if (typeof parsed.timeoutMs === 'number') {
+      tapOptions.timeoutMs = parsed.timeoutMs;
+    }
+
+    const result = await flightTap(tapOptions);
+    const outputPath = parsed.out;
+    if (outputPath) {
       const payload = { samples: result.samples };
-      await writeFile(parsed.out, JSON.stringify(payload, null, 2), 'utf8');
+      await writeFile(outputPath, JSON.stringify(payload, null, 2), 'utf8');
       console.log(
-        `[scx-flight] wrote ${result.samples.length} samples (${result.chunks} chunks) to ${parsed.out}`
+        `[scx-flight] wrote ${result.samples.length} samples (${result.chunks} chunks) to ${outputPath}`
       );
     }
   } catch (error) {

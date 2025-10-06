@@ -135,6 +135,9 @@ function collectParallelSuggestions(sourceFile: ts.SourceFile, filePath: string)
   }
 
   const target = awaits[1];
+  if (!target) {
+    return [];
+  }
 
   return [
     toSuggestion(
@@ -163,7 +166,8 @@ function collectSuggestionsForSource({
     // Server component suggestions
     suggestions.push(...collectParallelSuggestions(sourceFile, filePath));
     suggestions.push(...detectSuspenseBoundaryIssues(sourceFile, filePath));
-    suggestions.push(...detectReact19CacheOpportunities(sourceFile, filePath, { reactVersion }));
+    const reactConfig = reactVersion ? { reactVersion } : {};
+    suggestions.push(...detectReact19CacheOpportunities(sourceFile, filePath, reactConfig));
   }
 
   return suggestions;
@@ -188,7 +192,7 @@ export async function collectSuggestions({
         filePath: entry.filePath.replace(/\\/g, '/'),
         sourceText,
         kind: entry.kind,
-        reactVersion,
+        ...(reactVersion ? { reactVersion } : {}),
       });
       return [entry.filePath.replace(/\\/g, '/'), suggestions] as const;
     })

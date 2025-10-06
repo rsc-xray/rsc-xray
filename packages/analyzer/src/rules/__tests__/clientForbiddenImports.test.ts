@@ -7,6 +7,7 @@ import {
   analyzeClientFileForForbiddenImports,
   collectForbiddenImportDiagnostics,
 } from '../clientForbiddenImports';
+import { ensureDefined } from '../../testUtils/assert';
 
 const COMPONENT_ROOT = join(__dirname, '../../lib/__tests__/__fixtures__/components');
 
@@ -24,7 +25,8 @@ describe('client forbidden imports', () => {
     });
 
     expect(diagnostics).toHaveLength(1);
-    expect(diagnostics[0]).toMatchObject({
+    const firstDiagnostic = ensureDefined(diagnostics[0]);
+    expect(firstDiagnostic).toMatchObject({
       rule: 'client-forbidden-import',
       level: 'error',
     });
@@ -47,11 +49,14 @@ describe('client forbidden imports', () => {
     ];
     const sources = await Promise.all(filePaths.map(loadSource));
     const classified = await classifyFiles({ projectRoot: COMPONENT_ROOT, filePaths });
-    const files = classified.map((entry, index) => ({
-      filePath: entry.filePath,
-      kind: entry.kind,
-      sourceText: sources[index],
-    }));
+    const files = classified.map((entry, index) => {
+      const sourceText = ensureDefined(sources[index]);
+      return {
+        filePath: entry.filePath,
+        kind: entry.kind,
+        sourceText,
+      };
+    });
 
     const diagnostics = collectForbiddenImportDiagnostics({ files });
     expect(diagnostics).toHaveLength(0);

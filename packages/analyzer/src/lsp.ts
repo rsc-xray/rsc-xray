@@ -127,10 +127,12 @@ export function analyzeLspRequest(request: LspAnalysisRequest): LspAnalysisRespo
         ? new Set(context.clientComponentPaths)
         : undefined;
 
+      const serializationOptions = clientComponents ? { clientComponents } : {};
+
       const results = analyzeSerializationBoundary({
         sourceText: request.code,
         fileName,
-        clientComponents,
+        ...serializationOptions,
       });
       diagnostics.push(...results);
       rulesExecuted.push('serialization-boundary-violation');
@@ -157,7 +159,7 @@ export function analyzeLspRequest(request: LspAnalysisRequest): LspAnalysisRespo
   // React 19 cache() opportunities
   if (shouldRun('react19-cache-opportunity', 'react19-cache')) {
     try {
-      const config = context.reactVersion ? { reactVersion: context.reactVersion } : undefined;
+      const config = context.reactVersion ? { reactVersion: context.reactVersion } : {};
       const results = detectReact19CacheOpportunities(sourceFile, fileName, config);
       diagnostics.push(...results);
       rulesExecuted.push('react19-cache-opportunity');
@@ -232,7 +234,13 @@ export function analyzeScenario(
   scenario: LspAnalysisRequest['scenario'],
   context?: LspAnalysisRequest['context']
 ): Array<Diagnostic | Suggestion> {
-  const result = analyzeLspRequest({ code, fileName, scenario, context });
+  const request: LspAnalysisRequest = {
+    code,
+    fileName,
+    ...(scenario ? { scenario } : {}),
+    ...(context ? { context } : {}),
+  };
+  const result = analyzeLspRequest(request);
   return result.diagnostics;
 }
 
