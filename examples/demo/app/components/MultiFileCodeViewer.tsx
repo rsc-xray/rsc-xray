@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { EditorView, basicSetup } from 'codemirror';
 import { javascript } from '@codemirror/lang-javascript';
 import { linter, forceLinting, type Diagnostic as CMDiagnostic } from '@codemirror/lint';
@@ -77,7 +77,7 @@ interface MultiFileCodeViewerConfig {
 export function MultiFileCodeViewer({
   files,
   initialFile,
-  diagnostics = [],
+  diagnostics,
   enableRealTimeAnalysis = false,
   onAnalyze,
   analysisDebounceMs = 500,
@@ -94,9 +94,13 @@ export function MultiFileCodeViewer({
   const viewRef = useRef<EditorView | null>(null);
   const [isReady, setIsReady] = useState(false);
   const scenarioRef = useRef(scenario);
+  const normalizedDiagnostics = useMemo<Array<Diagnostic | Suggestion>>(
+    () => diagnostics ?? [],
+    [diagnostics]
+  );
   const [localDiagnostics, setLocalDiagnostics] =
-    useState<Array<Diagnostic | Suggestion>>(diagnostics);
-  const diagnosticsRef = useRef<Array<Diagnostic | Suggestion>>([]);
+    useState<Array<Diagnostic | Suggestion>>(normalizedDiagnostics);
+  const diagnosticsRef = useRef<Array<Diagnostic | Suggestion>>(normalizedDiagnostics);
   const reAnalyzeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Keep scenario ref up to date
@@ -106,8 +110,22 @@ export function MultiFileCodeViewer({
 
   // Keep diagnostics ref/state in sync with incoming props
   useEffect(() => {
-    setLocalDiagnostics(diagnostics);
-  }, [diagnostics]);
+    setLocalDiagnostics((current) => {
+      if (current === normalizedDiagnostics) {
+        return current;
+      }
+
+      // Avoid triggering rerenders when the incoming diagnostics content has not changed
+      if (
+        current.length === normalizedDiagnostics.length &&
+        current.every((diag, index) => diag === normalizedDiagnostics[index])
+      ) {
+        return current;
+      }
+
+      return normalizedDiagnostics;
+    });
+  }, [normalizedDiagnostics]);
 
   useEffect(() => {
     diagnosticsRef.current = localDiagnostics;
@@ -164,7 +182,7 @@ export function MultiFileCodeViewer({
             }
           } else {
             // No analyzer available; keep existing diagnostics
-            setLocalDiagnostics(diagnostics);
+            setLocalDiagnostics(normalizedDiagnostics);
             return;
           }
 
@@ -181,7 +199,7 @@ export function MultiFileCodeViewer({
       enableRealTimeAnalysis,
       scenario,
       onAnalyze,
-      diagnostics,
+      normalizedDiagnostics,
       analysisDebounceMs,
       onAnalysisStart,
       onAnalysisComplete,
