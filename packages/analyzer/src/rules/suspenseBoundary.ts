@@ -35,25 +35,34 @@ function toSuggestion(
 
         // Check if this is a return statement with JSX
         if (ts.isReturnStatement(n) && n.expression) {
-          if (
-            ts.isJsxElement(n.expression) ||
-            ts.isJsxSelfClosingElement(n.expression) ||
-            ts.isJsxFragment(n.expression)
-          ) {
-            targetNode = n.expression;
+          let expr = n.expression;
+
+          // Unwrap parenthesized expressions (e.g., return (...))
+          while (ts.isParenthesizedExpression(expr)) {
+            expr = expr.expression;
+          }
+
+          if (ts.isJsxElement(expr) || ts.isJsxSelfClosingElement(expr) || ts.isJsxFragment(expr)) {
+            targetNode = expr;
             foundJsxReturn = true;
             return;
           }
         }
 
         // For arrow functions with direct JSX expression (no block)
-        if (
-          !ts.isBlock(body) &&
-          (ts.isJsxElement(body) || ts.isJsxSelfClosingElement(body) || ts.isJsxFragment(body))
-        ) {
-          targetNode = body;
-          foundJsxReturn = true;
-          return;
+        if (!ts.isBlock(body)) {
+          let expr = body;
+
+          // Unwrap parenthesized expressions
+          while (ts.isParenthesizedExpression(expr)) {
+            expr = expr.expression;
+          }
+
+          if (ts.isJsxElement(expr) || ts.isJsxSelfClosingElement(expr) || ts.isJsxFragment(expr)) {
+            targetNode = expr;
+            foundJsxReturn = true;
+            return;
+          }
         }
 
         ts.forEachChild(n, findJsxReturn);

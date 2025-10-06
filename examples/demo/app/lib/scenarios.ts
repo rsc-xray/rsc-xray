@@ -11,10 +11,12 @@
 export interface Scenario {
   id: string;
   title: string;
-  category: 'fundamentals' | 'performance' | 'pro';
+  category: 'fundamentals' | 'performance' | 'pro' | 'real-world';
   isPro: boolean;
   rule: string;
   description: string;
+  /** Main file name (e.g., 'page.tsx', 'demo.tsx') - used consistently across demo and reports */
+  fileName?: string;
   code: string;
   explanation: {
     what: string;
@@ -33,10 +35,17 @@ export interface Scenario {
       totalBytes: number;
     }>;
     routeConfig?: {
-      dynamic?: string;
+      dynamic?: 'auto' | 'force-dynamic' | 'force-static' | 'error';
       revalidate?: number | false;
-      fetchCache?: string;
-      runtime?: string;
+      fetchCache?:
+        | 'auto'
+        | 'default-cache'
+        | 'only-cache'
+        | 'force-cache'
+        | 'default-no-store'
+        | 'only-no-store'
+        | 'force-no-store';
+      runtime?: 'nodejs' | 'edge';
       preferredRegion?: string;
     };
     reactVersion?: string;
@@ -46,6 +55,22 @@ export interface Scenario {
     fileName: string;
     code: string;
     description: string;
+  }>;
+  /** Whether this scenario should show a generated report instead of live diagnostics */
+  showReport?: boolean;
+  /** Pre-generated HTML report content (for real-world scenarios) */
+  reportHtml?: string;
+  /** Additional routes for multi-route scenarios (real-world demos) */
+  additionalRoutes?: Array<{
+    route: string;
+    fileName: string;
+    code: string;
+    contextFiles?: Array<{
+      fileName: string;
+      code: string;
+      description: string;
+    }>;
+    context?: Scenario['context'];
   }>;
 }
 
@@ -346,6 +371,298 @@ export default async function Page() {
       'Waterfall visualization',
       'Automatic refactoring suggestions',
       'Performance timeline',
+    ],
+  },
+
+  // Real-World Example
+  {
+    id: 'real-world-app',
+    title: 'Real-World E-Commerce App (2 Routes)',
+    category: 'real-world',
+    isPro: false,
+    rule: 'multiple',
+    description:
+      'Realistic Next.js app with 2 routes showing route-specific duplicate dependencies',
+    fileName: 'page.tsx',
+    code: `// app/dashboard/page.tsx
+// E-Commerce Dashboard with Analytics
+
+import fs from 'fs'; // ❌ Node API in potential client context
+import { Suspense } from 'react';
+import { ProductChart } from '../../components/ProductChart';
+import { SalesMetrics } from './SalesMetrics';
+import { UserActivity } from './UserActivity';
+
+export const revalidate = 60;
+export const dynamic = 'force-dynamic'; // ❌ Conflicts with revalidate
+
+async function getAnalytics() {
+  const data = await fetch('https://api.example.com/analytics');
+  return data.json();
+}
+
+async function getSales() {
+  const sales = await fetch('https://api.example.com/sales');
+  return sales.json();
+}
+
+export default async function Dashboard() {
+  // ❌ Sequential awaits (waterfall)
+  const analytics = await getAnalytics();
+  const sales = await getSales();
+  
+  // ❌ Passing Date object to client component
+  const handleExport = (date: Date) => {
+    console.log('Exporting', date);
+  };
+  
+  // ❌ Missing Suspense boundary
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <ProductChart 
+        data={analytics} 
+        onExport={handleExport}
+        timestamp={new Date()}
+      />
+      <SalesMetrics metrics={sales} />
+      <UserActivity />
+    </div>
+  );
+}`,
+    explanation: {
+      what: 'Multi-route e-commerce app with route-specific duplicate dependencies and shared components',
+      why: `This demonstrates real-world patterns:
+• Route 1 (/dashboard): Has duplicate chart-lib, date-fns, lodash across 3 components
+• Route 2 (/products): Shares ProductChart but has its own ProductGrid component
+• Duplicates are route-specific: chart-lib is duplicated in /dashboard but not /products
+• Shows serialization errors, config conflicts, missing Suspense, and forbidden imports`,
+      how: `Best practices:
+1. Move shared components to app/components/ to enable proper code splitting
+2. Use dynamic imports for route-specific heavy components
+3. Identify duplicates per-route and extract to shared chunks
+4. Fix boundary violations (serialization, Node.js imports)
+5. Resolve config conflicts and add Suspense boundaries`,
+    },
+    proFeatures: [
+      'Interactive overlay showing boundary tree with 7 violations highlighted',
+      'Performance dashboard with A-F scoring (this app: D- grade)',
+      'Automated refactoring via VS Code quick fixes (2 one-click, 5 guided)',
+      'CI budget enforcement to prevent regressions',
+      'Trend tracking across commits to measure improvement',
+    ],
+    contextDescription: `Analyzing 2 routes with shared and unique components:
+• Route 1 (/dashboard): ProductChart, SalesMetrics, UserActivity (3 dupl: chart-lib, date-fns, lodash)
+• Route 2 (/products): ProductChart (shared), ProductGrid, FilterBar (1 dupl: date-fns)
+• Route segment config conflicts, missing Suspense, serialization violations
+• Demonstrates route-specific duplicate detection`,
+    showReport: true,
+    context: {
+      clientComponentPaths: ['./ProductChart', './SalesMetrics', './UserActivity'],
+      routeConfig: {
+        revalidate: 60,
+        dynamic: 'force-dynamic',
+      },
+      clientBundles: [
+        {
+          filePath: 'app/dashboard/ProductChart.tsx',
+          chunks: ['chart-lib', 'date-fns'],
+          totalBytes: 145000,
+        },
+        {
+          filePath: 'app/dashboard/SalesMetrics.tsx',
+          chunks: ['chart-lib', 'lodash'],
+          totalBytes: 98000,
+        },
+        {
+          filePath: 'app/dashboard/UserActivity.tsx',
+          chunks: ['date-fns', 'lodash'],
+          totalBytes: 87000,
+        },
+      ],
+      reactVersion: '18.3.1',
+    },
+    contextFiles: [
+      {
+        fileName: 'ProductChart.tsx',
+        code: `'use client';
+import fs from 'fs'; // ❌ Node API in client component
+import { Chart } from 'chart-lib'; // Large dependency (80KB)
+import { format } from 'date-fns'; // Shared dependency
+
+interface Props {
+  data: any;
+  onExport: (date: Date) => void; // ❌ Function prop
+  timestamp: Date; // ❌ Date prop
+}
+
+export function ProductChart({ data, onExport, timestamp }: Props) {
+  return (
+    <div>
+      <h2>Product Sales</h2>
+      <Chart data={data} />
+      <p>Last updated: {format(timestamp, 'PPP')}</p>
+      <button onClick={() => onExport(new Date())}>
+        Export Report
+      </button>
+    </div>
+  );
+}`,
+        description: '❌ 3 violations: forbidden import, function prop, Date prop',
+      },
+      {
+        fileName: 'SalesMetrics.tsx',
+        code: `'use client';
+import { Chart } from 'chart-lib'; // ⚠️ Duplicate: 80KB
+import { merge } from 'lodash'; // Shared dependency (71KB)
+
+export function SalesMetrics({ metrics }: { metrics: any }) {
+  const config = merge({}, defaultConfig, metrics.config);
+  
+  return (
+    <div>
+      <h2>Sales Overview</h2>
+      <Chart type="bar" data={config} />
+    </div>
+  );
+}`,
+        description: '⚠️ 1 violation: duplicate chart-lib dependency (80KB)',
+      },
+      {
+        fileName: 'UserActivity.tsx',
+        code: `'use client';
+import { format } from 'date-fns'; // ⚠️ Duplicate
+import { debounce } from 'lodash'; // ⚠️ Duplicate
+
+// ❌ Manual deduplication (should use React 19 cache())
+const activityCache = new Map();
+async function fetchActivity() {
+  if (activityCache.has('key')) return activityCache.get('key');
+  const data = await fetch('/api/activity').then(r => r.json());
+  activityCache.set('key', data);
+  return data;
+}
+
+export function UserActivity() {
+  // ... component logic
+  return <div>Activity Feed</div>;
+}`,
+        description:
+          '⚠️ 2 violations: duplicate dependencies (date-fns, lodash), manual cache (use React 19 cache())',
+      },
+    ],
+    additionalRoutes: [
+      {
+        route: '/products',
+        fileName: 'page.tsx',
+        code: `// app/products/page.tsx
+// Product Listing Page
+
+import { ProductChart } from '../../components/ProductChart';
+import { ProductGrid } from './ProductGrid';
+import { FilterBar } from './FilterBar';
+
+async function getProducts() {
+  const products = await fetch('https://api.example.com/products');
+  return products.json();
+}
+
+async function getCategories() {
+  const categories = await fetch('https://api.example.com/categories');
+  return categories.json();
+}
+
+export default async function Products() {
+  // ❌ Sequential awaits (waterfall)
+  const products = await getProducts();
+  const categories = await getCategories();
+  
+  // ✅ No duplicate chart-lib in this route (only ProductChart uses it)
+  // ❌ Still missing Suspense boundary
+  return (
+    <div>
+      <h1>Products</h1>
+      <FilterBar categories={categories} />
+      <ProductChart data={products} />
+      <ProductGrid products={products} />
+    </div>
+  );
+}`,
+        contextFiles: [
+          {
+            fileName: 'ProductGrid.tsx',
+            code: `'use client';
+import { format } from 'date-fns'; // ⚠️ Duplicate with ProductChart in this route
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  updatedAt: Date;
+}
+
+export function ProductGrid({ products }: { products: Product[] }) {
+  return (
+    <div className="grid">
+      {products.map((p) => (
+        <div key={p.id}>
+          <h3>{p.name}</h3>
+          <p>\${p.price}</p>
+          <small>Updated: {format(p.updatedAt, 'PPP')}</small>
+        </div>
+      ))}
+    </div>
+  );
+}`,
+            description: '⚠️ Duplicate date-fns with ProductChart (in /products route only)',
+          },
+          {
+            fileName: 'FilterBar.tsx',
+            code: `'use client';
+import { useState } from 'react';
+
+export function FilterBar({ categories }: { categories: string[] }) {
+  const [selected, setSelected] = useState<string>('all');
+  
+  return (
+    <div>
+      {categories.map((cat) => (
+        <button 
+          key={cat} 
+          onClick={() => setSelected(cat)}
+          className={selected === cat ? 'active' : ''}
+        >
+          {cat}
+        </button>
+      ))}
+    </div>
+  );
+}`,
+            description: '✅ No violations in this component',
+          },
+        ],
+        context: {
+          clientComponentPaths: ['../../components/ProductChart', './ProductGrid', './FilterBar'],
+          clientBundles: [
+            {
+              filePath: 'app/components/ProductChart.tsx',
+              chunks: ['chart-lib', 'date-fns'],
+              totalBytes: 145000,
+            },
+            {
+              filePath: 'app/products/ProductGrid.tsx',
+              chunks: ['date-fns'],
+              totalBytes: 25000,
+            },
+            {
+              filePath: 'app/products/FilterBar.tsx',
+              chunks: [],
+              totalBytes: 8000,
+            },
+          ],
+          reactVersion: '18.3.1',
+        },
+      },
     ],
   },
 ];

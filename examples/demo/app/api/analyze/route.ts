@@ -30,7 +30,11 @@ function expandDuplicateDependenciesDiagnostics(
   scenarioId: string
 ): Array<Diagnostic | Suggestion> {
   const scenario = scenarios.find((s: Scenario) => s.id === scenarioId);
-  if (scenarioId !== 'duplicate-dependencies' || !scenario) return diagnostics;
+  if (!scenario) return diagnostics;
+
+  // Only expand if there are duplicate-dependencies diagnostics
+  const hasDuplicateDeps = diagnostics.some((d) => d.rule === 'duplicate-dependencies');
+  if (!hasDuplicateDeps) return diagnostics;
 
   const expanded: Array<Diagnostic | Suggestion> = [];
 
@@ -60,12 +64,6 @@ function expandDuplicateDependenciesDiagnostics(
         sourceCode = contextFile.code;
         fileName = contextFile.fileName;
         matchedFile = diag.loc?.file; // Keep original file path for filtering
-        console.log(
-          '[expandDuplicateDeps] Matched context file:',
-          fileName,
-          'for diagnostic:',
-          diag.loc?.file
-        );
       }
     }
 
@@ -75,33 +73,35 @@ function expandDuplicateDependenciesDiagnostics(
       continue;
     }
 
+    // Parse the diagnostic message to extract which packages are actually duplicated
+    // Message format: "Duplicate dependencies: chart-lib (also imported by X), date-fns (also imported by Y). Consider..."
+    const duplicatedPackages = new Set<string>();
+    const messageMatch = diag.message.match(/Duplicate dependencies[^:]*:\s*([^.]+)\./);
+    if (messageMatch) {
+      const packagesStr = messageMatch[1];
+      // Extract package names before " (also imported by"
+      const packageMatches = packagesStr.matchAll(/([^\s,]+)\s*\(also imported by/g);
+      for (const match of packageMatches) {
+        duplicatedPackages.add(match[1]);
+      }
+    }
+
     // Parse the source code and find all imports
     const sourceFile = ts.createSourceFile(fileName, sourceCode, ts.ScriptTarget.Latest, true);
 
     const imports = sourceFile.statements.filter((stmt) => ts.isImportDeclaration(stmt));
 
-    console.log('[expandDuplicateDeps] Found', imports.length, 'imports in', fileName);
-
-    // Create one diagnostic per import
+    // Create one diagnostic per DUPLICATED import (not all imports)
     for (const importStmt of imports) {
       if (ts.isImportDeclaration(importStmt)) {
         const moduleSpecifier = importStmt.moduleSpecifier;
         if (ts.isStringLiteral(moduleSpecifier)) {
           const packageName = moduleSpecifier.text;
-          const startPos = sourceFile.getLineAndCharacterOfPosition(
-            moduleSpecifier.getStart(sourceFile)
-          );
 
-          console.log(
-            '[expandDuplicateDeps] Creating diagnostic for',
-            packageName,
-            'at line',
-            startPos.line + 1,
-            'col',
-            startPos.character + 1,
-            'in',
-            matchedFile
-          );
+          // Only create diagnostic if this package is mentioned in the original diagnostic message
+          if (!duplicatedPackages.has(packageName)) {
+            continue;
+          }
 
           expanded.push({
             ...diag,
@@ -119,12 +119,6 @@ function expandDuplicateDependenciesDiagnostics(
     }
   }
 
-  console.log(
-    '[expandDuplicateDeps] Expanded',
-    diagnostics.length,
-    'diagnostics to',
-    expanded.length
-  );
   return expanded;
 }
 

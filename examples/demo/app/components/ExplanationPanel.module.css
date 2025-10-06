@@ -5,6 +5,32 @@
   overflow: hidden;
 }
 
+.reportButton {
+  margin: var(--spacing-md) var(--spacing-lg) 0;
+  width: calc(100% - var(--spacing-lg) * 2);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.reportButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.reportButton:active {
+  transform: translateY(0);
+}
+
 .content {
   flex: 1;
   overflow-y: auto;

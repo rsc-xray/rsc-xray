@@ -10,6 +10,7 @@ interface ExplanationPanelConfig {
   diagnosticsCount: number;
   onSelectScenario: (scenarioId: string) => void;
   onOpenProModal: (feature: ProFeature) => void;
+  onShowReport?: () => void;
 }
 
 /**
@@ -26,10 +27,17 @@ export function ExplanationPanel({
   diagnosticsCount,
   onSelectScenario,
   onOpenProModal,
+  onShowReport,
 }: ExplanationPanelConfig) {
   return (
     <div className={styles.panel}>
       <ScenarioSelector selectedScenarioId={scenario.id} onSelectScenario={onSelectScenario} />
+
+      {scenario.showReport && onShowReport && (
+        <button onClick={onShowReport} className={styles.reportButton}>
+          📊 View Full Analysis Report
+        </button>
+      )}
 
       <div className={styles.content}>
         <header className={styles.header}>

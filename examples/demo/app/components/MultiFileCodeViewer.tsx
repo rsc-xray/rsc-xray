@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { EditorView, basicSetup } from 'codemirror';
 import { javascript } from '@codemirror/lang-javascript';
-import { linter, type Diagnostic as CMDiagnostic } from '@codemirror/lint';
+import { linter, forceLinting, type Diagnostic as CMDiagnostic } from '@codemirror/lint';
 import type { Diagnostic, Suggestion } from '@rsc-xray/schemas';
 import styles from './MultiFileCodeViewer.module.css';
 
@@ -26,29 +26,30 @@ export interface CodeFile {
 interface MultiFileCodeViewerConfig {
   /** Array of files to display in tabs */
   files: CodeFile[];
-  /** Optional diagnostics to overlay on the code */
-  diagnostics?: Array<Diagnostic | Suggestion>;
   /** Initial active file (defaults to first file) */
   initialFile?: string;
+  /** Precomputed diagnostics to display (optional) */
+  diagnostics?: Array<Diagnostic | Suggestion>;
+  /** Enable live re-analysis when code changes (defaults to true if scenario provided) */
+  enableRealTimeAnalysis?: boolean;
+  /** Optional custom analyzer callback used when live analysis is enabled */
+  onAnalyze?: (fileName: string, code: string) => Promise<Array<Diagnostic | Suggestion>>;
+  /** Debounce interval (ms) between edits and re-analysis, defaults to 500ms */
+  analysisDebounceMs?: number;
   /** Callback when active file changes */
   onFileChange?: (fileName: string) => void;
   /** Callback when editable file content changes */
   onCodeChange?: (fileName: string, code: string) => void;
-  /** Scenario object for analysis context (enables real-time analysis for editable files) */
+  /** Scenario object for analysis context (required for analysis) */
   scenario?: {
     id: string;
+    fileName?: string;
     context?: Record<string, unknown>;
   };
   /** Callback when analysis completes */
   onAnalysisComplete?: (diagnostics: Array<Diagnostic | Suggestion>, duration: number) => void;
   /** Callback when analysis starts */
   onAnalysisStart?: () => void;
-  /** Enable real-time analysis for editable files (triggers onAnalyze callback) - DEPRECATED, use scenario prop */
-  enableRealTimeAnalysis?: boolean;
-  /** Callback to perform analysis (return diagnostics for all files) - DEPRECATED, use scenario prop */
-  onAnalyze?: (fileName: string, code: string) => Promise<Array<Diagnostic | Suggestion>>;
-  /** Debounce delay for real-time analysis in ms (default: 300) */
-  analysisDebounceMs?: number;
 }
 
 /**
@@ -75,16 +76,16 @@ interface MultiFileCodeViewerConfig {
  */
 export function MultiFileCodeViewer({
   files,
-  diagnostics = [],
   initialFile,
+  diagnostics,
+  enableRealTimeAnalysis = false,
+  onAnalyze,
+  analysisDebounceMs = 500,
   onFileChange,
   onCodeChange,
   scenario,
   onAnalysisComplete,
   onAnalysisStart,
-  enableRealTimeAnalysis = false,
-  onAnalyze,
-  analysisDebounceMs = 300,
 }: MultiFileCodeViewerConfig) {
   const [activeFileName, setActiveFileName] = useState<string>(
     initialFile || files[0]?.fileName || ''
@@ -93,19 +94,179 @@ export function MultiFileCodeViewer({
   const viewRef = useRef<EditorView | null>(null);
   const [isReady, setIsReady] = useState(false);
   const scenarioRef = useRef(scenario);
+  const normalizedDiagnostics = useMemo<Array<Diagnostic | Suggestion>>(
+    () => diagnostics ?? [],
+    [diagnostics]
+  );
+  const [localDiagnostics, setLocalDiagnostics] =
+    useState<Array<Diagnostic | Suggestion>>(normalizedDiagnostics);
+  const diagnosticsRef = useRef<Array<Diagnostic | Suggestion>>(normalizedDiagnostics);
+  const reAnalyzeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Keep scenario ref up to date
   useEffect(() => {
     scenarioRef.current = scenario;
   }, [scenario]);
 
+  // Keep diagnostics ref/state in sync with incoming props
+  useEffect(() => {
+    setLocalDiagnostics((current) => {
+      if (current === normalizedDiagnostics) {
+        return current;
+      }
+
+      // Avoid triggering rerenders when the incoming diagnostics content has not changed
+      if (
+        current.length === normalizedDiagnostics.length &&
+        current.every((diag, index) => diag === normalizedDiagnostics[index])
+      ) {
+        return current;
+      }
+
+      return normalizedDiagnostics;
+    });
+  }, [normalizedDiagnostics]);
+
+  useEffect(() => {
+    diagnosticsRef.current = localDiagnostics;
+  }, [localDiagnostics]);
+
   const activeFile = files.find((f) => f.fileName === activeFileName);
 
-  // Suppress unused variable warnings for deprecated props
-  // These are kept for backwards compatibility but not used in scenario mode
-  void enableRealTimeAnalysis;
-  void onAnalyze;
-  void analysisDebounceMs;
+  // Re-analyze function (debounced)
+  const triggerReAnalysis = useCallback(
+    (code: string, fileName: string) => {
+      if (!enableRealTimeAnalysis && !scenario && !onAnalyze) {
+        return;
+      }
+
+      // Clear existing timeout
+      if (reAnalyzeTimeoutRef.current) {
+        clearTimeout(reAnalyzeTimeoutRef.current);
+      }
+
+      // Debounce: wait 500ms after last edit
+      reAnalyzeTimeoutRef.current = setTimeout(async () => {
+        console.log(`[MultiFileCodeViewer] Re-analyzing after edit: ${fileName}`);
+        if (onAnalysisStart) onAnalysisStart();
+
+        try {
+          const start = performance.now();
+          let nextDiagnostics: Array<Diagnostic | Suggestion> = [];
+
+          if (onAnalyze) {
+            nextDiagnostics = await onAnalyze(fileName, code);
+          } else if (scenario) {
+            const response = await fetch('/api/analyze', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache',
+              },
+              body: JSON.stringify({
+                code,
+                fileName,
+                scenario: scenario.id,
+                context: scenario.context,
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error(`Analysis failed: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            nextDiagnostics = result.diagnostics || [];
+            if (onAnalysisComplete) {
+              onAnalysisComplete(nextDiagnostics, result.duration);
+            }
+          } else {
+            // No analyzer available; keep existing diagnostics
+            setLocalDiagnostics(normalizedDiagnostics);
+            return;
+          }
+
+          setLocalDiagnostics(nextDiagnostics);
+          if (onAnalysisComplete && !scenario) {
+            onAnalysisComplete(nextDiagnostics, Math.round(performance.now() - start));
+          }
+        } catch (error) {
+          console.error('[MultiFileCodeViewer] Re-analysis error:', error);
+        }
+      }, analysisDebounceMs);
+    },
+    [
+      enableRealTimeAnalysis,
+      scenario,
+      onAnalyze,
+      normalizedDiagnostics,
+      analysisDebounceMs,
+      onAnalysisStart,
+      onAnalysisComplete,
+    ]
+  );
+
+  // Run analysis on mount or when scenario changes
+  useEffect(() => {
+    if (!scenario) {
+      setLocalDiagnostics([]);
+      return;
+    }
+
+    const runAnalysis = async () => {
+      console.log(`[MultiFileCodeViewer] Running initial analysis for scenario "${scenario.id}"`);
+      if (onAnalysisStart) onAnalysisStart();
+
+      try {
+        // Analyze the main file (page.tsx or first file)
+        // The editable flag is UI-only; all files are source code for analysis
+        const mainFile =
+          files.find((f) => scenario.fileName && f.fileName === scenario.fileName) || files[0];
+        if (!mainFile) {
+          console.log('[MultiFileCodeViewer] No files to analyze');
+          setLocalDiagnostics([]);
+          return;
+        }
+
+        console.log(`[MultiFileCodeViewer] Analyzing ${mainFile.fileName}`);
+
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+          },
+          body: JSON.stringify({
+            code: mainFile.code,
+            fileName: mainFile.fileName,
+            scenario: scenario.id,
+            context: scenario.context,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Analysis failed: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        console.log(
+          '[MultiFileCodeViewer] Analysis complete:',
+          result.diagnostics.length,
+          'diagnostics'
+        );
+
+        setLocalDiagnostics(result.diagnostics || []);
+        if (onAnalysisComplete) {
+          onAnalysisComplete(result.diagnostics || [], result.duration);
+        }
+      } catch (error) {
+        console.error('[MultiFileCodeViewer] Analysis error:', error);
+        setLocalDiagnostics([]);
+      }
+    };
+
+    runAnalysis();
+  }, [scenario?.id]); // Only re-run when scenario changes (files/callbacks change too often)
 
   // Convert RSC X-Ray diagnostics to CodeMirror diagnostics for the active file
   const convertDiagnostics = (
@@ -125,38 +286,46 @@ export function MultiFileCodeViewer({
 
     if (!viewRef.current) return [];
 
-    return filtered.map((diag) => {
-      try {
-        // Use the precise range from the analyzer if available
-        if (diag.loc?.range) {
+    return filtered
+      .filter((diag) => {
+        // Skip component-level diagnostics (0-0 range) - they should be shown in a summary panel, not inline
+        if (diag.loc?.range && diag.loc.range.from === 0 && diag.loc.range.to === 0) {
+          return false;
+        }
+        return true;
+      })
+      .map((diag) => {
+        try {
+          // Use the precise range from the analyzer if available
+          if (diag.loc?.range) {
+            return {
+              from: diag.loc.range.from,
+              to: diag.loc.range.to,
+              severity: diag.level === 'error' ? 'error' : 'warning',
+              message: diag.message,
+              source: diag.rule,
+            } as CMDiagnostic;
+          }
+
+          // Fallback: shouldn't happen with new schema, but kept for safety
           return {
-            from: diag.loc.range.from,
-            to: diag.loc.range.to,
+            from: 0,
+            to: 10,
+            severity: diag.level === 'error' ? 'error' : 'warning',
+            message: diag.message,
+            source: diag.rule,
+          } as CMDiagnostic;
+        } catch (e) {
+          console.error('[MultiFileCodeViewer] Error converting diagnostic:', e);
+          return {
+            from: 0,
+            to: 10,
             severity: diag.level === 'error' ? 'error' : 'warning',
             message: diag.message,
             source: diag.rule,
           } as CMDiagnostic;
         }
-
-        // Fallback: shouldn't happen with new schema, but kept for safety
-        return {
-          from: 0,
-          to: 10,
-          severity: diag.level === 'error' ? 'error' : 'warning',
-          message: diag.message,
-          source: diag.rule,
-        } as CMDiagnostic;
-      } catch (e) {
-        console.error('[MultiFileCodeViewer] Error converting diagnostic:', e);
-        return {
-          from: 0,
-          to: 10,
-          severity: diag.level === 'error' ? 'error' : 'warning',
-          message: diag.message,
-          source: diag.rule,
-        } as CMDiagnostic;
-      }
-    });
+      });
   };
 
   // Initialize or update CodeMirror editor
@@ -169,54 +338,15 @@ export function MultiFileCodeViewer({
       viewRef.current = null;
     }
 
-    // Create linter: async if scenario is provided and file is editable, otherwise sync
-    const linterExtension =
-      scenario && activeFile.editable
-        ? linter(async (view): Promise<CMDiagnostic[]> => {
-            const code = view.state.doc.toString();
-            const currentScenario = scenarioRef.current;
-
-            if (!currentScenario) {
-              return convertDiagnostics(diagnostics, activeFile.fileName);
-            }
-
-            console.log(`[MultiFileCodeViewer] Running analysis for "${currentScenario.id}"`);
-
-            try {
-              if (onAnalysisStart) onAnalysisStart();
-
-              const response = await fetch('/api/analyze', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Cache-Control': 'no-cache',
-                },
-                body: JSON.stringify({
-                  code,
-                  fileName: activeFile.fileName,
-                  scenario: currentScenario.id,
-                  context: currentScenario.context,
-                }),
-              });
-
-              if (!response.ok) {
-                throw new Error(`Analysis failed: ${response.statusText}`);
-              }
-
-              const result = await response.json();
-              console.log('[MultiFileCodeViewer] Analysis result:', result);
-
-              if (onAnalysisComplete) {
-                onAnalysisComplete(result.diagnostics || [], result.duration);
-              }
-
-              return convertDiagnostics(result.diagnostics || [], activeFile.fileName);
-            } catch (error) {
-              console.error('[MultiFileCodeViewer] Analysis error:', error);
-              return [];
-            }
-          })
-        : linter(() => convertDiagnostics(diagnostics, activeFile.fileName));
+    // Use sync linter that filters local diagnostics for the active file
+    // Use diagnosticsRef to always read the latest diagnostics (closure issue fix)
+    const linterExtension = linter(() => {
+      const currentDiags = diagnosticsRef.current;
+      console.log(
+        `[MultiFileCodeViewer] Filtering ${currentDiags.length} diagnostics for ${activeFile.fileName}`
+      );
+      return convertDiagnostics(currentDiags, activeFile.fileName);
+    });
 
     const view = new EditorView({
       doc: activeFile.code,
@@ -226,10 +356,13 @@ export function MultiFileCodeViewer({
         EditorView.editable.of(activeFile.editable || false),
         linterExtension,
         EditorView.updateListener.of((update) => {
-          if (update.docChanged && activeFile.editable && onCodeChange) {
+          if (update.docChanged && activeFile.editable) {
             const newCode = update.state.doc.toString();
-            onCodeChange(activeFile.fileName, newCode);
-            // Note: Analysis is handled by the linter extension (see linterExtension above)
+            if (onCodeChange) {
+              onCodeChange(activeFile.fileName, newCode);
+            }
+            // Trigger re-analysis after edit (debounced)
+            triggerReAnalysis(newCode, activeFile.fileName);
           }
         }),
         EditorView.theme({
@@ -268,16 +401,27 @@ export function MultiFileCodeViewer({
     };
   }, [activeFileName, activeFile?.code]);
 
-  // Update diagnostics when they change (for non-scenario mode)
+  // Update diagnostics when they change
   useEffect(() => {
-    if (!viewRef.current || !isReady || scenario) return; // Skip if scenario mode (linter handles it)
+    console.log(
+      `[MultiFileCodeViewer] Diagnostics changed: ${localDiagnostics.length}, isReady: ${isReady}, viewRef: ${!!viewRef.current}`
+    );
 
-    import('@codemirror/lint').then(({ forceLinting }) => {
+    if (!viewRef.current || !isReady) {
+      console.log('[MultiFileCodeViewer] Skipping forceLinting (editor not ready)');
+      return;
+    }
+
+    console.log('[MultiFileCodeViewer] Forcing linter to re-run');
+
+    // Use setTimeout to ensure diagnosticsRef.current has updated
+    setTimeout(() => {
       if (viewRef.current) {
+        console.log('[MultiFileCodeViewer] Actually calling forceLinting now');
         forceLinting(viewRef.current);
       }
-    });
-  }, [diagnostics, isReady, scenario]);
+    }, 0);
+  }, [localDiagnostics, isReady]);
 
   const handleTabChange = (fileName: string) => {
     setActiveFileName(fileName);
@@ -309,9 +453,6 @@ export function MultiFileCodeViewer({
       {activeFile?.description && (
         <div className={styles.description}>{activeFile.description}</div>
       )}
-
-      {/* Analyzing indicator */}
-      {enableRealTimeAnalysis && <div className={styles.analyzingIndicator}>⚡ Analyzing...</div>}
 
       {/* CodeMirror editor */}
       <div ref={editorRef} className={styles.editor} />

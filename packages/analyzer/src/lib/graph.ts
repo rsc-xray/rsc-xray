@@ -22,6 +22,7 @@ import {
   parseRouteSegmentConfig,
   detectConfigConflicts,
   isRouteFile,
+  type RouteSegmentConfigWithNodes,
 } from '../rules/routeSegmentConfig.js';
 
 export interface BuildGraphOptions {
@@ -429,11 +430,19 @@ export async function buildGraph({
       nodes[routeId] = routeNode;
     }
 
+    // Strip out AST nodes from segmentConfig before adding to model (they cause circular JSON refs)
+    let cleanSegmentConfig: RouteSegmentConfig | undefined;
+    if (segmentConfig) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { nodes, ...rest } = segmentConfig as RouteSegmentConfigWithNodes;
+      cleanSegmentConfig = rest;
+    }
+
     routes.push({
       route,
       rootNodeId: routeId,
       ...(routeCache ? { cache: routeCache } : {}),
-      ...(segmentConfig ? { segmentConfig } : {}),
+      ...(cleanSegmentConfig ? { segmentConfig: cleanSegmentConfig } : {}),
     });
   }
 

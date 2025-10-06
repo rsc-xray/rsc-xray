@@ -10,6 +10,7 @@ import { ExplanationPanel } from './ExplanationPanel';
 import { StatusBar } from './StatusBar';
 import { ProModal, type ProFeature } from './ProPreview';
 import { MultiFileCodeViewer, type CodeFile } from './MultiFileCodeViewer';
+import { ReportViewer } from './ReportViewer';
 import styles from './DemoApp.module.css';
 
 /**
@@ -49,6 +50,7 @@ export function DemoApp() {
     isOpen: false,
     feature: null,
   });
+  const [showReport, setShowReport] = useState(false);
 
   // Sync URL with scenario changes
   useSyncUrlOnScenarioChange(selectedScenarioId);
@@ -65,7 +67,7 @@ export function DemoApp() {
   // Prepare files for MultiFileCodeViewer
   const allFiles: CodeFile[] = [
     {
-      fileName: 'demo.tsx',
+      fileName: scenario.fileName || 'demo.tsx', // Use scenario's fileName or fallback to demo.tsx
       code: scenario.code,
       description: scenario.description,
       editable: true, // Main file is editable
@@ -96,13 +98,13 @@ export function DemoApp() {
               diagnosticsCount={diagnostics.length}
               onSelectScenario={handleSelectScenario}
               onOpenProModal={handleOpenProModal}
+              onShowReport={() => setShowReport(true)}
             />
           }
           rightPanel={
             <MultiFileCodeViewer
               key={selectedScenarioId} // Force remount on scenario change
               files={allFiles}
-              diagnostics={diagnostics}
               initialFile="demo.tsx"
               scenario={scenario} // Pass scenario for analysis context
               onAnalysisComplete={(diags, duration) => {
@@ -128,6 +130,10 @@ export function DemoApp() {
           isOpen={proModalState.isOpen}
           onClose={handleCloseProModal}
         />
+      )}
+
+      {showReport && (
+        <ReportViewer scenarioTitle={scenario.title} onClose={() => setShowReport(false)} />
       )}
     </div>
   );

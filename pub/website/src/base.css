@@ -1,0 +1,325 @@
+/* Base (semantic) styles: resets, layout, spacing, grids, basic typography.
+   Variants provide visual design (colors, shadows, effects, components). */
+
+:root {
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  color: #0f172a;
+  background: #ffffff;
+  line-height: 1.6;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #ffffff;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+img {
+  max-width: 100%;
+  display: block;
+}
+button,
+input {
+  font: inherit;
+}
+
+.container {
+  width: min(1120px, calc(100% - 48px));
+  margin: 0 auto;
+}
+
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -40px;
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  z-index: 200;
+}
+.skip-link:focus-visible {
+  top: 12px;
+}
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 150;
+  background: rgba(255, 255, 255, 0.95);
+  border-bottom: 1px solid #e5e7eb;
+}
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+}
+.logo {
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+.menu-toggle {
+  display: none;
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+.nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+/* Section spacing */
+.in-action,
+.trust,
+.outcomes,
+.how,
+.demo,
+.pro,
+.features,
+.comparison,
+.pricing,
+.testimonials,
+.faq,
+.email {
+  padding: 64px 0;
+}
+.in-action h2,
+.trust h2,
+.outcomes h2,
+.how h2,
+.demo h2,
+.pro h2,
+.features h2,
+.comparison h2,
+.pricing h2,
+.testimonials h2,
+.faq h2,
+.email h2 {
+  margin: 0 0 12px;
+  font-size: clamp(1.75rem, 3vw, 2.4rem);
+}
+
+/* Simple horizontal scroll gallery */
+.gallery {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(240px, 1fr);
+  gap: 12px;
+  overflow-x: auto;
+  padding: 12px 0;
+}
+
+/* Trust logos row */
+.trust-inner {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.trust-label {
+  color: #64748b;
+  font-weight: 600;
+}
+.trust-logos {
+  display: flex;
+  gap: 24px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.trust-logos img {
+  height: 24px;
+  width: auto;
+}
+
+/* Grids */
+.grid {
+  display: grid;
+  gap: 20px;
+}
+.grid.two {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+.grid.three {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+.grid.four {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+/* Pricing layout (neutral) */
+.pricing .grid {
+  align-items: stretch;
+}
+.plan-tagline {
+  margin: 0 0 12px;
+  font-weight: 600;
+}
+.plan-price {
+  font-size: 1.4rem;
+  margin: 0 0 12px;
+}
+
+/* Testimonials */
+.testimonials blockquote {
+  margin: 0;
+  padding: 24px;
+  border-left: 4px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 12px;
+  color: #475569;
+}
+
+/* FAQ + Newsletter structure */
+.faq-grid {
+  display: grid;
+  gap: 32px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.faq-bullets {
+  list-style: disc outside;
+  margin: 20px 0 0 18px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.faq-accordion {
+  display: grid;
+  gap: 12px;
+}
+.faq-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #ffffff;
+}
+.faq-trigger {
+  width: 100%;
+  padding: 18px 20px;
+  background: transparent;
+  border: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 1rem;
+  text-align: left;
+  cursor: pointer;
+}
+.faq-icon {
+  font-size: 1.25rem;
+  color: #94a3b8;
+}
+.faq-panel {
+  padding: 0 20px 20px;
+  color: #475569;
+}
+.faq-panel[hidden] {
+  display: none;
+}
+
+.newsletter-inner {
+  display: grid;
+  gap: 32px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 360px);
+  align-items: center;
+}
+.newsletter-points {
+  list-style: disc outside;
+  margin: 20px 0 0 18px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.newsletter-form {
+  margin: 0;
+}
+.newsletter-card {
+  background: #f1f5f9;
+  border-radius: 16px;
+  padding: 24px;
+  display: grid;
+  gap: 14px;
+  border: 1px solid #e2e8f0;
+}
+.newsletter-card label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.newsletter-card input {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+}
+
+.site-footer {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 48px 0 24px;
+}
+.footer-inner {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 24px;
+}
+.site-footer a {
+  color: #cbd5f5;
+}
+.site-footer ul {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.footer-credit {
+  text-align: center;
+  margin-top: 24px;
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+  .menu-toggle {
+    display: inline-flex;
+  }
+  .nav {
+    position: absolute;
+    top: 100%;
+    right: 24px;
+    left: 24px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: none;
+  }
+  .nav.is-open {
+    display: block;
+  }
+  .nav ul {
+    flex-direction: column;
+    gap: 12px;
+  }
+}

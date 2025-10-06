@@ -106,4 +106,34 @@ describe('buildGraph', () => {
     const serverMessageNode = ensureDefined(graph.nodes['module:app/components/ServerMessage.tsx']);
     expect(serverMessageNode.diagnostics).toBeUndefined();
   });
+
+  it('strips AST nodes from route segment config to prevent circular JSON refs', async () => {
+    const projectRoot = join(__dirname, '__fixtures__', 'route-segment-config');
+    const filePaths = await collectTsFiles(projectRoot);
+    const classified = await classifyFiles({ projectRoot, filePaths });
+
+    const graph = await buildGraph({
+      projectRoot,
+      classifiedFiles: classified,
+      diagnosticsByFile: {},
+      clientBundles: [],
+      suggestionsByFile: {},
+    });
+
+    // Find route with segment config
+    const routeWithConfig = graph.routes.find((r) => r.segmentConfig);
+    expect(routeWithConfig).toBeDefined();
+    expect(routeWithConfig?.segmentConfig).toBeDefined();
+
+    // Ensure no AST nodes are present (would have 'nodes' property if they were)
+    expect(routeWithConfig?.segmentConfig).not.toHaveProperty('nodes');
+
+    // Ensure it's JSON-serializable (would throw if circular refs exist)
+    expect(() => JSON.stringify(graph)).not.toThrow();
+
+    // Verify the config values are still present
+    expect(routeWithConfig?.segmentConfig).toMatchObject({
+      dynamic: 'force-dynamic',
+    });
+  });
 });
