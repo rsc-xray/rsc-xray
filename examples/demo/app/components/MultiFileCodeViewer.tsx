@@ -28,6 +28,8 @@ interface MultiFileCodeViewerConfig {
   files: CodeFile[];
   /** Initial active file (defaults to first file) */
   initialFile?: string;
+  /** Precomputed diagnostics to display (optional) */
+  diagnostics?: Array<Diagnostic | Suggestion>;
   /** Callback when active file changes */
   onFileChange?: (fileName: string) => void;
   /** Callback when editable file content changes */
@@ -69,6 +71,7 @@ interface MultiFileCodeViewerConfig {
 export function MultiFileCodeViewer({
   files,
   initialFile,
+  diagnostics = [],
   onFileChange,
   onCodeChange,
   scenario,
@@ -82,7 +85,8 @@ export function MultiFileCodeViewer({
   const viewRef = useRef<EditorView | null>(null);
   const [isReady, setIsReady] = useState(false);
   const scenarioRef = useRef(scenario);
-  const [localDiagnostics, setLocalDiagnostics] = useState<Array<Diagnostic | Suggestion>>([]);
+  const [localDiagnostics, setLocalDiagnostics] =
+    useState<Array<Diagnostic | Suggestion>>(diagnostics);
   const diagnosticsRef = useRef<Array<Diagnostic | Suggestion>>([]);
   const reAnalyzeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -91,7 +95,11 @@ export function MultiFileCodeViewer({
     scenarioRef.current = scenario;
   }, [scenario]);
 
-  // Keep diagnostics ref in sync with state
+  // Keep diagnostics ref/state in sync with incoming props
+  useEffect(() => {
+    setLocalDiagnostics(diagnostics);
+  }, [diagnostics]);
+
   useEffect(() => {
     diagnosticsRef.current = localDiagnostics;
   }, [localDiagnostics]);
