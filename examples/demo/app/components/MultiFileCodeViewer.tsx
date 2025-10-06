@@ -30,6 +30,12 @@ interface MultiFileCodeViewerConfig {
   initialFile?: string;
   /** Precomputed diagnostics to display (optional) */
   diagnostics?: Array<Diagnostic | Suggestion>;
+  /** Enable live re-analysis when code changes (defaults to true if scenario provided) */
+  enableRealTimeAnalysis?: boolean;
+  /** Optional custom analyzer callback used when live analysis is enabled */
+  onAnalyze?: (fileName: string, code: string) => Promise<Array<Diagnostic | Suggestion>>;
+  /** Debounce interval (ms) between edits and re-analysis, defaults to 500ms */
+  analysisDebounceMs?: number;
   /** Callback when active file changes */
   onFileChange?: (fileName: string) => void;
   /** Callback when editable file content changes */
@@ -72,6 +78,9 @@ export function MultiFileCodeViewer({
   files,
   initialFile,
   diagnostics = [],
+  enableRealTimeAnalysis = false,
+  onAnalyze,
+  analysisDebounceMs = 500,
   onFileChange,
   onCodeChange,
   scenario,
@@ -109,7 +118,9 @@ export function MultiFileCodeViewer({
   // Re-analyze function (debounced)
   const triggerReAnalysis = useCallback(
     (code: string, fileName: string) => {
-      if (!scenario) return;
+      if (!enableRealTimeAnalysis && !scenario && !onAnalyze) {
+        return;
+      }
 
       // Clear existing timeout
       if (reAnalyzeTimeoutRef.current) {
@@ -122,35 +133,59 @@ export function MultiFileCodeViewer({
         if (onAnalysisStart) onAnalysisStart();
 
         try {
-          const response = await fetch('/api/analyze', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Cache-Control': 'no-cache',
-            },
-            body: JSON.stringify({
-              code,
-              fileName,
-              scenario: scenario.id,
-              context: scenario.context,
-            }),
-          });
+          const start = performance.now();
+          let nextDiagnostics: Array<Diagnostic | Suggestion> = [];
 
-          if (!response.ok) {
-            throw new Error(`Analysis failed: ${response.statusText}`);
+          if (onAnalyze) {
+            nextDiagnostics = await onAnalyze(fileName, code);
+          } else if (scenario) {
+            const response = await fetch('/api/analyze', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache',
+              },
+              body: JSON.stringify({
+                code,
+                fileName,
+                scenario: scenario.id,
+                context: scenario.context,
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error(`Analysis failed: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            nextDiagnostics = result.diagnostics || [];
+            if (onAnalysisComplete) {
+              onAnalysisComplete(nextDiagnostics, result.duration);
+            }
+          } else {
+            // No analyzer available; keep existing diagnostics
+            setLocalDiagnostics(diagnostics);
+            return;
           }
 
-          const result = await response.json();
-          setLocalDiagnostics(result.diagnostics || []);
-          if (onAnalysisComplete) {
-            onAnalysisComplete(result.diagnostics || [], result.duration);
+          setLocalDiagnostics(nextDiagnostics);
+          if (onAnalysisComplete && !scenario) {
+            onAnalysisComplete(nextDiagnostics, Math.round(performance.now() - start));
           }
         } catch (error) {
           console.error('[MultiFileCodeViewer] Re-analysis error:', error);
         }
-      }, 500);
+      }, analysisDebounceMs);
     },
-    [scenario, onAnalysisStart, onAnalysisComplete]
+    [
+      enableRealTimeAnalysis,
+      scenario,
+      onAnalyze,
+      diagnostics,
+      analysisDebounceMs,
+      onAnalysisStart,
+      onAnalysisComplete,
+    ]
   );
 
   // Run analysis on mount or when scenario changes

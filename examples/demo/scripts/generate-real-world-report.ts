@@ -286,7 +286,7 @@ export function FilterBar({ categories }: { categories: string[] }) {
   const dashPageResult = await analyze({
     code: dashboardRoute.pageCode,
     fileName: 'app/dashboard/page.tsx',
-    context: { ...dashboardRoute.context, route: dashboardRoute.route },
+    context: { ...dashboardRoute.context },
   });
   console.log(`  Page diagnostics: ${dashPageResult.diagnostics.length}`);
 
@@ -295,7 +295,7 @@ export function FilterBar({ categories }: { categories: string[] }) {
       const result = await analyze({
         code: comp.code,
         fileName: comp.filePath,
-        context: { ...dashboardRoute.context, route: dashboardRoute.route },
+        context: { ...dashboardRoute.context },
       });
       console.log(`  ${comp.fileName} diagnostics: ${result.diagnostics.length}`);
       return { ...comp, diagnostics: result.diagnostics };
@@ -307,7 +307,7 @@ export function FilterBar({ categories }: { categories: string[] }) {
   const prodPageResult = await analyze({
     code: productsRoute.pageCode,
     fileName: 'app/products/page.tsx',
-    context: { ...productsRoute.context, route: productsRoute.route },
+    context: { ...productsRoute.context },
   });
   console.log(`  Page diagnostics: ${prodPageResult.diagnostics.length}`);
 
@@ -316,7 +316,7 @@ export function FilterBar({ categories }: { categories: string[] }) {
       const result = await analyze({
         code: comp.code,
         fileName: comp.filePath,
-        context: { ...productsRoute.context, route: productsRoute.route },
+        context: { ...productsRoute.context },
       });
       console.log(`  ${comp.fileName} diagnostics: ${result.diagnostics.length}`);
       return { ...comp, diagnostics: result.diagnostics };
