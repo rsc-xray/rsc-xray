@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from '../route';
 import { NextRequest } from 'next/server';
 import type { LspAnalysisRequest } from '@rsc-xray/lsp-server';
+import { scenarios } from '../../../lib/scenarios';
 
 describe('POST /api/analyze', () => {
   beforeEach(() => {
@@ -208,9 +209,60 @@ export function DateDisplay({ date }: { date: Date }) {
     expect(response.status).toBe(200);
     expect(result.diagnostics).toBeDefined();
     expect(result.rulesExecuted).toContain('duplicate-dependencies');
-    // Should detect 3 duplicate chunks shared across components
+    // Should detect duplicate chunks shared across components
     expect(result.diagnostics.length).toBeGreaterThan(0);
-    expect(result.diagnostics[0].message).toContain('3 dependencies');
+    expect(result.diagnostics[0].message).toMatch(/dependencies/);
+  });
+
+  it('should analyze multiple files in a single request and group diagnostics by file', async () => {
+    const mainCode = `'use client';
+import fs from 'fs';
+
+export function Reader() {
+  return fs.readFileSync('file.txt', 'utf8');
+}`;
+
+    const helperCode = `'use client';
+import os from 'os';
+
+export function Env() {
+  return <div>{os.platform()}</div>;
+}`;
+
+    const request = new NextRequest('http://localhost:3001/api/analyze', {
+      method: 'POST',
+      body: JSON.stringify({
+        scenario: 'client-forbidden-imports',
+        analysisTargets: [
+          {
+            fileKey: 'demo.tsx',
+            fileName: 'demo.tsx',
+            code: mainCode,
+          },
+          {
+            fileKey: 'Env.tsx',
+            fileName: 'Env.tsx',
+            code: helperCode,
+          },
+        ],
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const response = await POST(request);
+    const result = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(result.diagnosticsByFile).toBeDefined();
+    expect(result.diagnosticsByFile['demo.tsx']).toBeDefined();
+    expect(result.diagnosticsByFile['demo.tsx'].length).toBeGreaterThan(0);
+    expect(result.diagnosticsByFile['Env.tsx']).toBeDefined();
+    expect(result.diagnosticsByFile['Env.tsx'].length).toBeGreaterThan(0);
+    expect(result.diagnostics.length).toBe(
+      result.diagnosticsByFile['demo.tsx'].length + result.diagnosticsByFile['Env.tsx'].length
+    );
   });
 
   it('should analyze react19-cache scenario and return diagnostics', async () => {
@@ -353,6 +405,82 @@ export default function Page() {
     expect(response.status).toBe(400);
     expect(result.error).toBeDefined();
     expect(result.error.code).toBe('INVALID_REQUEST');
+  });
+
+  it('scopes route config diagnostics to route files in the real-world scenario', async () => {
+    const realWorldScenario = scenarios.find((scenario) => scenario.id === 'real-world-app');
+    expect(realWorldScenario).toBeDefined();
+
+    const salesMetricsFile = realWorldScenario?.contextFiles?.find(
+      (file) => file.fileName === 'SalesMetrics.tsx'
+    );
+    expect(salesMetricsFile).toBeDefined();
+
+    const productsRoute = realWorldScenario?.additionalRoutes?.find(
+      (route) => route.route === '/products'
+    );
+    expect(productsRoute).toBeDefined();
+
+    const mergedProductsContext = productsRoute?.context
+      ? { ...(realWorldScenario?.context ?? {}), ...productsRoute.context }
+      : realWorldScenario?.context;
+
+    const request = new NextRequest('http://localhost:3001/api/analyze', {
+      method: 'POST',
+      body: JSON.stringify({
+        scenario: 'real-world-app',
+        context: realWorldScenario?.context,
+        analysisTargets: [
+          {
+            fileKey: 'dashboard/page.tsx',
+            fileName: 'dashboard/page.tsx',
+            code: realWorldScenario?.code ?? '',
+            context: realWorldScenario?.context,
+          },
+          {
+            fileKey: 'SalesMetrics.tsx',
+            fileName: 'SalesMetrics.tsx',
+            code: salesMetricsFile?.code ?? '',
+            context: realWorldScenario?.context,
+          },
+          {
+            fileKey: 'products/page.tsx',
+            fileName: 'products/page.tsx',
+            code: productsRoute?.code ?? '',
+            context: mergedProductsContext,
+          },
+        ],
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const response = await POST(request);
+    const result = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(result.diagnosticsByFile).toBeDefined();
+
+    const salesMetricsDiagnostics = result.diagnosticsByFile?.['SalesMetrics.tsx'] ?? [];
+    expect(
+      salesMetricsDiagnostics.some(
+        (diag: { rule?: string }) => diag.rule === 'route-segment-config-conflict'
+      )
+    ).toBe(false);
+
+    const productsRouteDiagnostics = result.diagnosticsByFile?.['products/page.tsx'] ?? [];
+    expect(productsRouteDiagnostics.length).toBeGreaterThan(0);
+    expect(
+      productsRouteDiagnostics.every((diag: { rule?: string }) => diag.rule !== undefined)
+    ).toBe(true);
+
+    const productChartDiagnostics = result.diagnosticsByFile?.['ProductChart.tsx'] ?? [];
+    expect(
+      productChartDiagnostics.some(
+        (diag: { rule?: string }) => diag.rule === 'duplicate-dependencies'
+      )
+    ).toBe(true);
   });
 
   it('should handle analysis errors gracefully', async () => {

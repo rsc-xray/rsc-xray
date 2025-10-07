@@ -13,6 +13,18 @@ import { MultiFileCodeViewer, type CodeFile } from './MultiFileCodeViewer';
 import { ReportViewer } from './ReportViewer';
 import styles from './DemoApp.module.css';
 
+function extractRouteSegmentFromCode(code: string): string | null {
+  const match = code.match(/\/\/\s*app\/([A-Za-z0-9/_-]+)\/page\.tsx/);
+  return match ? match[1] : null;
+}
+
+function formatRouteDisplayName(segment: string | null, fallback: string): string {
+  if (!segment) return fallback;
+  const normalized = segment.replace(/\/$/, '');
+  const leaf = normalized.split('/').pop() ?? normalized;
+  return `${leaf}.tsx`;
+}
+
 /**
  * Main demo application with state management
  *
@@ -27,11 +39,23 @@ import styles from './DemoApp.module.css';
  * - ?scenario=<id> - Load specific scenario
  * - ?line=<number> - Highlight specific line in editor
  */
-export function DemoApp() {
+interface DemoAppProps {
+  initialScenarioId?: string | null;
+  initialLine?: number | null;
+}
+
+export function DemoApp({ initialScenarioId = null, initialLine = null }: DemoAppProps) {
   const { initialParams } = useDeepLink();
+  const initialLineFromParams = initialLine ?? initialParams.line;
+  void initialLineFromParams;
 
   // Initialize scenario from URL param or default to first scenario
   const getInitialScenario = (): string => {
+    if (initialScenarioId) {
+      const scenario = getScenario(initialScenarioId);
+      if (scenario) return scenario.id;
+    }
+
     if (initialParams.scenario) {
       const scenario = getScenario(initialParams.scenario);
       if (scenario) return scenario.id;
@@ -64,18 +88,60 @@ export function DemoApp() {
     setAnalysisDuration(undefined);
   };
 
+  const mainRouteSegment = extractRouteSegmentFromCode(scenario.code);
+  const mainFileBaseName = scenario.fileName || 'demo.tsx';
+  const mainFileName = mainRouteSegment
+    ? `${mainRouteSegment}/${mainFileBaseName}`
+    : mainFileBaseName;
+  const mainDisplayName = formatRouteDisplayName(mainRouteSegment, mainFileBaseName);
+
+  const componentMap = new Map<string, CodeFile>();
+
+  const registerComponent = (file: { fileName: string; code: string; description?: string }) => {
+    if (componentMap.has(file.fileName)) {
+      return;
+    }
+
+    componentMap.set(file.fileName, {
+      fileName: file.fileName,
+      displayName: file.fileName,
+      code: file.code,
+      description: file.description,
+      editable: false,
+    });
+  };
+
+  (scenario.contextFiles || []).forEach(registerComponent);
+
+  const additionalRouteFiles: CodeFile[] = (scenario.additionalRoutes || []).map((route) => {
+    const routeSegment = route.route.replace(/^\//, '').replace(/\/$/, '');
+    const fileName = routeSegment ? `${routeSegment}/${route.fileName}` : route.fileName;
+    const displayName = formatRouteDisplayName(routeSegment || null, route.fileName);
+
+    (route.contextFiles || []).forEach(registerComponent);
+
+    return {
+      fileName,
+      displayName,
+      code: route.code,
+      description: `Route ${route.route}`,
+      editable: false,
+    } satisfies CodeFile;
+  });
+
+  const componentFiles: CodeFile[] = Array.from(componentMap.values());
+
   // Prepare files for MultiFileCodeViewer
   const allFiles: CodeFile[] = [
     {
-      fileName: scenario.fileName || 'demo.tsx', // Use scenario's fileName or fallback to demo.tsx
+      fileName: mainFileName,
+      displayName: mainDisplayName,
       code: scenario.code,
       description: scenario.description,
       editable: true, // Main file is editable
     },
-    ...(scenario.contextFiles || []).map((file) => ({
-      ...file,
-      editable: false, // Context files are read-only
-    })),
+    ...additionalRouteFiles,
+    ...componentFiles,
   ];
 
   const handleOpenProModal = (feature: ProFeature): void => {
@@ -105,7 +171,7 @@ export function DemoApp() {
             <MultiFileCodeViewer
               key={selectedScenarioId} // Force remount on scenario change
               files={allFiles}
-              initialFile="demo.tsx"
+              initialFile={allFiles[0]?.fileName}
               scenario={scenario} // Pass scenario for analysis context
               onAnalysisComplete={(diags, duration) => {
                 setDiagnostics(diags);

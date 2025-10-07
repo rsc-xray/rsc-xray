@@ -41,7 +41,12 @@ function toDiagnostic(
     const normalizedSourcePath = sourceFile.fileName.replace(/^\.\//, '');
     const normalizedFilePath = filePath.replace(/^\.\//, '');
 
-    if (normalizedSourcePath === normalizedFilePath) {
+    const isSameFile =
+      normalizedSourcePath === normalizedFilePath ||
+      normalizedFilePath.endsWith(`/${normalizedSourcePath}`) ||
+      normalizedSourcePath.endsWith(`/${normalizedFilePath}`);
+
+    if (isSameFile) {
       // Find the first import declaration and its module specifier (package name)
       const firstImport = sourceFile.statements.find(
         (stmt) =>

@@ -13,7 +13,27 @@ import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { renderHtmlReport } from '@rsc-xray/report-html';
 import { analyze } from '@rsc-xray/lsp-server';
-import type { Model } from '@rsc-xray/schemas';
+import type { Diagnostic, Suggestion, Model } from '@rsc-xray/schemas';
+
+function annotateDuplicateDiagnostics(
+  diagnostics: Array<Diagnostic | Suggestion>,
+  routeLabel: string
+): Array<Diagnostic | Suggestion> {
+  return diagnostics.map((diag) => {
+    if (diag.rule !== 'duplicate-dependencies') {
+      return diag;
+    }
+
+    if (diag.message.includes(`Route ${routeLabel}:`)) {
+      return diag;
+    }
+
+    return {
+      ...diag,
+      message: `Route ${routeLabel}: ${diag.message}`,
+    };
+  });
+}
 
 /**
  * Generate a multi-route real-world demo report
@@ -283,12 +303,17 @@ export function FilterBar({ categories }: { categories: string[] }) {
 
   // Analyze route 1: Dashboard
   console.log('\n📊 Analyzing Route 1: /dashboard');
+  const dashboardRouteLabel = '/dashboard';
   const dashPageResult = await analyze({
     code: dashboardRoute.pageCode,
     fileName: 'app/dashboard/page.tsx',
     context: { ...dashboardRoute.context },
   });
-  console.log(`  Page diagnostics: ${dashPageResult.diagnostics.length}`);
+  const dashPageDiagnostics = annotateDuplicateDiagnostics(
+    dashPageResult.diagnostics || [],
+    dashboardRouteLabel
+  );
+  console.log(`  Page diagnostics: ${dashPageDiagnostics.length}`);
 
   const dashCompResults = await Promise.all(
     dashboardRoute.components.map(async (comp) => {
@@ -297,29 +322,45 @@ export function FilterBar({ categories }: { categories: string[] }) {
         fileName: comp.filePath,
         context: { ...dashboardRoute.context },
       });
-      console.log(`  ${comp.fileName} diagnostics: ${result.diagnostics.length}`);
-      return { ...comp, diagnostics: result.diagnostics };
+      const diagnostics = annotateDuplicateDiagnostics(
+        result.diagnostics || [],
+        dashboardRouteLabel
+      );
+      console.log(`  ${comp.fileName} diagnostics: ${diagnostics.length}`);
+      return { ...comp, diagnostics };
     })
   );
 
   // Analyze route 2: Products
   console.log('\n📊 Analyzing Route 2: /products');
+  const productsRouteLabel = '/products';
   const prodPageResult = await analyze({
     code: productsRoute.pageCode,
     fileName: 'app/products/page.tsx',
     context: { ...productsRoute.context },
   });
-  console.log(`  Page diagnostics: ${prodPageResult.diagnostics.length}`);
+  const prodPageDiagnostics = annotateDuplicateDiagnostics(
+    prodPageResult.diagnostics || [],
+    productsRouteLabel
+  );
+  console.log(`  Page diagnostics: ${prodPageDiagnostics.length}`);
+
+  const sharedProductChart = dashboardRoute.components[0];
+  const prodComponentsForAnalysis = [{ ...sharedProductChart }, ...productsRoute.components];
 
   const prodCompResults = await Promise.all(
-    productsRoute.components.map(async (comp) => {
+    prodComponentsForAnalysis.map(async (comp) => {
       const result = await analyze({
         code: comp.code,
         fileName: comp.filePath,
         context: { ...productsRoute.context },
       });
-      console.log(`  ${comp.fileName} diagnostics: ${result.diagnostics.length}`);
-      return { ...comp, diagnostics: result.diagnostics };
+      const diagnostics = annotateDuplicateDiagnostics(
+        result.diagnostics || [],
+        productsRouteLabel
+      );
+      console.log(`  ${comp.fileName} diagnostics: ${diagnostics.length}`);
+      return { ...comp, diagnostics };
     })
   );
 
@@ -353,7 +394,7 @@ export function FilterBar({ categories }: { categories: string[] }) {
         name: 'Dashboard',
         bytes: 2048,
         children: ['comp-product-chart-dash', 'comp-sales-metrics', 'comp-user-activity'],
-        diagnostics: dashPageResult.diagnostics
+        diagnostics: dashPageDiagnostics
           .filter((d) => d.level !== 'info')
           .map((d) => ({
             rule: d.rule,
@@ -435,7 +476,7 @@ export function FilterBar({ categories }: { categories: string[] }) {
         name: 'Products',
         bytes: 1800,
         children: ['comp-product-chart-prod', 'comp-product-grid', 'comp-filter-bar'],
-        diagnostics: prodPageResult.diagnostics
+        diagnostics: prodPageDiagnostics
           .filter((d) => d.level !== 'info')
           .map((d) => ({
             rule: d.rule,
@@ -455,9 +496,7 @@ export function FilterBar({ categories }: { categories: string[] }) {
         file: 'app/components/ProductChart.tsx',
         name: 'ProductChart',
         bytes: 145000,
-        // Note: ProductChart diagnostics already collected in dashboard route
-        // For now, include them here too (in real analysis, would be deduplicated)
-        diagnostics: dashCompResults[0]?.diagnostics
+        diagnostics: prodCompResults[0]?.diagnostics
           .filter((d) => d.level !== 'info')
           .map((d) => ({
             rule: d.rule,
@@ -477,7 +516,7 @@ export function FilterBar({ categories }: { categories: string[] }) {
         file: 'app/products/ProductGrid.tsx',
         name: 'ProductGrid',
         bytes: 25000,
-        diagnostics: prodCompResults[0]?.diagnostics
+        diagnostics: prodCompResults[1]?.diagnostics
           .filter((d) => d.level !== 'info')
           .map((d) => ({
             rule: d.rule,
@@ -497,7 +536,7 @@ export function FilterBar({ categories }: { categories: string[] }) {
         file: 'app/products/FilterBar.tsx',
         name: 'FilterBar',
         bytes: 8000,
-        diagnostics: prodCompResults[1]?.diagnostics
+        diagnostics: prodCompResults[2]?.diagnostics
           .filter((d) => d.level !== 'info')
           .map((d) => ({
             rule: d.rule,
