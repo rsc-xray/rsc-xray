@@ -19,25 +19,9 @@ function formatRouteLabel(segment: string | null, fallback: string): string {
 }
 
 function annotateDuplicateDiagnostics(
-  diagnostics: Array<Diagnostic | Suggestion>,
-  routeLabel: string | null
+  diagnostics: Array<Diagnostic | Suggestion>
 ): Array<Diagnostic | Suggestion> {
-  if (!routeLabel) return diagnostics;
-
-  return diagnostics.map((diag) => {
-    if (diag.rule !== 'duplicate-dependencies') {
-      return diag;
-    }
-
-    if (diag.message.includes(`Route ${routeLabel}:`)) {
-      return diag;
-    }
-
-    return {
-      ...diag,
-      message: `Route ${routeLabel}: ${diag.message}`,
-    };
-  });
+  return diagnostics;
 }
 
 type DiagnosticsByFile = Record<string, Array<Diagnostic | Suggestion>>;
@@ -64,7 +48,8 @@ function normalizeDiagnosticsForFile(
 function setDiagnosticsForFile(
   store: DiagnosticsByFile,
   fileKey: string,
-  diags: Array<Diagnostic | Suggestion>
+  diags: Array<Diagnostic | Suggestion>,
+  log?: (stage: string, payload: Record<string, unknown>) => void
 ): void {
   const filtered = diags.filter((diag) => {
     const locFile = diag.loc?.file;
@@ -74,7 +59,7 @@ function setDiagnosticsForFile(
     return false;
   });
 
-  console.log('[MultiFileCodeViewer] setDiagnosticsForFile', {
+  log?.('set-diagnostics-for-file', {
     fileKey,
     originalCount: diags.length,
     filteredCount: filtered.length,
@@ -238,15 +223,11 @@ export function MultiFileCodeViewer({
     (view: EditorView | null, fileName: string, diagnosticsByFile: DiagnosticsByFile) => {
       if (!view) return;
       const currentDiags = diagnosticsByFile[fileName] ?? [];
-      console.log('[MultiFileCodeViewer] Rendering diagnostics', {
+      logRealWorldDiagnostics('rendering-diagnostics', {
         fileName,
         diagnosticCount: currentDiags.length,
         availableFiles: Object.keys(diagnosticsByFile),
-        diags: currentDiags.slice(0, 3).map((diag) => ({
-          message: diag.message,
-          rule: 'rule' in diag ? diag.rule : 'suggestion',
-          loc: diag.loc,
-        })),
+        diagnosticsPreview: currentDiags.slice(0, 3),
       });
       const doc = view.state.doc;
 
@@ -277,7 +258,7 @@ export function MultiFileCodeViewer({
           } as CMDiagnostic;
         });
 
-      console.log('[MultiFileCodeViewer] Converted diagnostics', {
+      logRealWorldDiagnostics('cm-diagnostics-ready', {
         fileName,
         cmDiagnostics: cmDiagnostics.slice(0, 3),
       });
@@ -299,10 +280,10 @@ export function MultiFileCodeViewer({
     const mainFile = files[0];
     if (!mainFile) return;
 
-    const annotated = annotateDuplicateDiagnostics(diagnostics, mainRouteLabelRef.current);
+    const annotated = annotateDuplicateDiagnostics(diagnostics);
     setDiagnosticsByFile((prev) => {
       const next = { ...prev };
-      setDiagnosticsForFile(next, mainFile.fileName, annotated);
+      setDiagnosticsForFile(next, mainFile.fileName, annotated, logRealWorldDiagnostics);
       logRealWorldDiagnostics('prop-diagnostics-applied', {
         fileKey: mainFile.fileName,
         diagnostics: next[mainFile.fileName] ?? [],
@@ -375,14 +356,11 @@ export function MultiFileCodeViewer({
             nextDiagnostics = serverDiagnostics;
           }
 
-          const annotated = annotateDuplicateDiagnostics(
-            nextDiagnostics,
-            mainRouteLabelRef.current
-          );
+          const annotated = annotateDuplicateDiagnostics(nextDiagnostics);
 
           setDiagnosticsByFile((prev) => {
             const next = { ...prev } as DiagnosticsByFile;
-            setDiagnosticsForFile(next, fileName, annotated);
+            setDiagnosticsForFile(next, fileName, annotated, logRealWorldDiagnostics);
             logRealWorldDiagnostics('tab-diagnostics-updated', {
               fileKey: fileName,
               diagnostics: next[fileName] ?? [],
@@ -459,11 +437,15 @@ export function MultiFileCodeViewer({
           }
 
           seenFileKeys.add(target.fileKey);
+          const mergedTargetContext = target.context ? { ...target.context } : {};
+          if (target.routeLabel) {
+            mergedTargetContext.route = target.routeLabel;
+          }
           analysisTargets.push({
             fileKey: target.fileKey,
             fileName: target.fileKey,
             code: target.code,
-            context: target.context,
+            context: Object.keys(mergedTargetContext).length > 0 ? mergedTargetContext : undefined,
           });
           routeLabels.set(target.fileKey, target.routeLabel);
         };
@@ -563,12 +545,6 @@ export function MultiFileCodeViewer({
         const nextDiagnosticsByFile: DiagnosticsByFile = {};
 
         for (const [fileKey, diags] of Object.entries(incomingDiagnostics)) {
-          console.log('[MultiFileCodeViewer] Incoming diagnostics', {
-            scenarioId: currentScenario.id,
-            fileKey,
-            count: (diags ?? []).length,
-            sample: (diags ?? [])[0]?.loc,
-          });
           logRealWorldDiagnostics('initial-server-diagnostics', {
             fileKey,
             diagnostics: diags ?? [],
@@ -577,12 +553,14 @@ export function MultiFileCodeViewer({
           setDiagnosticsForFile(
             nextDiagnosticsByFile,
             fileKey,
-            annotateDuplicateDiagnostics(diags ?? [], routeLabel)
+            annotateDuplicateDiagnostics(diags ?? []),
+            logRealWorldDiagnostics
           );
           logRealWorldDiagnostics('initial-tab-diagnostics', {
             fileKey,
             diagnostics: nextDiagnosticsByFile[fileKey] ?? [],
             source: 'initial-load',
+            routeLabel,
           });
         }
 
@@ -599,18 +577,16 @@ export function MultiFileCodeViewer({
           setDiagnosticsForFile(
             nextDiagnosticsByFile,
             mainFile.fileName,
-            annotateDuplicateDiagnostics(result.diagnostics, routeLabel)
+            annotateDuplicateDiagnostics(result.diagnostics),
+            logRealWorldDiagnostics
           );
           logRealWorldDiagnostics('initial-tab-diagnostics-fallback', {
             fileKey: mainFile.fileName,
             diagnostics: nextDiagnosticsByFile[mainFile.fileName] ?? [],
             source: 'initial-load-fallback',
+            routeLabel,
           });
         } else {
-          console.log('[MultiFileCodeViewer] Incoming diagnostics keys', {
-            scenarioId: currentScenario.id,
-            keys: Object.keys(incomingDiagnostics),
-          });
           logRealWorldDiagnostics('initial-server-diagnostics-keys', {
             keys: Object.keys(incomingDiagnostics),
             diagnosticsCount: Object.values(incomingDiagnostics).reduce(

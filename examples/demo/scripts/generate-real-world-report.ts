@@ -16,23 +16,9 @@ import { analyze } from '@rsc-xray/lsp-server';
 import type { Diagnostic, Suggestion, Model } from '@rsc-xray/schemas';
 
 function annotateDuplicateDiagnostics(
-  diagnostics: Array<Diagnostic | Suggestion>,
-  routeLabel: string
+  diagnostics: Array<Diagnostic | Suggestion>
 ): Array<Diagnostic | Suggestion> {
-  return diagnostics.map((diag) => {
-    if (diag.rule !== 'duplicate-dependencies') {
-      return diag;
-    }
-
-    if (diag.message.includes(`Route ${routeLabel}:`)) {
-      return diag;
-    }
-
-    return {
-      ...diag,
-      message: `Route ${routeLabel}: ${diag.message}`,
-    };
-  });
+  return diagnostics;
 }
 
 /**
@@ -127,14 +113,17 @@ export function ProductChart({ data, onExport, timestamp }: Props) {
         code: `'use client';
 import { Chart } from 'chart-lib'; // ⚠️ Duplicate: 80KB
 import { merge } from 'lodash'; // Shared dependency (71KB)
+import { formatCurrency } from 'analytics-lib'; // ⚠️ Cross-route duplicate with reports
 
 export function SalesMetrics({ metrics }: { metrics: any }) {
   const config = merge({}, defaultConfig, metrics.config);
+  const totalRevenue = formatCurrency(metrics.totalRevenue);
   
   return (
     <div>
       <h2>Sales Overview</h2>
       <Chart type="bar" data={config} />
+      <p>Revenue: {totalRevenue}</p>
     </div>
   );
 }`,
@@ -175,8 +164,8 @@ export function UserActivity() {
         },
         {
           filePath: 'app/dashboard/SalesMetrics.tsx',
-          chunks: ['chart-lib', 'lodash'],
-          totalBytes: 98000,
+          chunks: ['chart-lib', 'lodash', 'analytics-lib'],
+          totalBytes: 108000,
         },
         {
           filePath: 'app/dashboard/UserActivity.tsx',
@@ -301,18 +290,81 @@ export function FilterBar({ categories }: { categories: string[] }) {
     },
   };
 
+  const reportsRoute = {
+    route: '/reports',
+    pageCode: `// app/reports/page.tsx
+// Revenue Reports Page
+
+import { Suspense } from 'react';
+import { SalesMetrics } from '../dashboard/SalesMetrics';
+import { RevenueBreakdown } from './RevenueBreakdown';
+
+export default function Reports() {
+  return (
+    <div>
+      <h1>Revenue Reports</h1>
+      <Suspense fallback={<div>Loading metrics…</div>}>
+        <SalesMetrics metrics={{ totalRevenue: 420000, config: {} }} />
+      </Suspense>
+      <RevenueBreakdown />
+    </div>
+  );
+}`,
+    components: [
+      {
+        fileName: 'RevenueBreakdown.tsx',
+        filePath: 'app/reports/RevenueBreakdown.tsx',
+        code: `'use client';
+import { formatCurrency } from 'analytics-lib'; // ⚠️ Duplicate across /dashboard and /reports
+
+const revenueByRegion = [
+  { region: 'NA', total: 220000 },
+  { region: 'EMEA', total: 135000 },
+  { region: 'APAC', total: 65000 },
+];
+
+export function RevenueBreakdown() {
+  return (
+    <section>
+      <h2>Revenue by Region</h2>
+      <ul>
+        {revenueByRegion.map((entry) => (
+          <li key={entry.region}>
+            <strong>{entry.region}:</strong> {formatCurrency(entry.total)}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}`,
+      },
+    ],
+    context: {
+      clientComponentPaths: ['../dashboard/SalesMetrics', './RevenueBreakdown'],
+      clientBundles: [
+        {
+          filePath: 'app/reports/RevenueBreakdown.tsx',
+          chunks: ['analytics-lib'],
+          totalBytes: 62000,
+        },
+        {
+          filePath: 'app/dashboard/SalesMetrics.tsx',
+          chunks: ['analytics-lib'],
+          totalBytes: 108000,
+        },
+      ],
+      reactVersion: '18.3.1',
+    },
+  };
+
   // Analyze route 1: Dashboard
   console.log('\n📊 Analyzing Route 1: /dashboard');
-  const dashboardRouteLabel = '/dashboard';
   const dashPageResult = await analyze({
     code: dashboardRoute.pageCode,
     fileName: 'app/dashboard/page.tsx',
     context: { ...dashboardRoute.context },
   });
-  const dashPageDiagnostics = annotateDuplicateDiagnostics(
-    dashPageResult.diagnostics || [],
-    dashboardRouteLabel
-  );
+  const dashPageDiagnostics = annotateDuplicateDiagnostics(dashPageResult.diagnostics || []);
   console.log(`  Page diagnostics: ${dashPageDiagnostics.length}`);
 
   const dashCompResults = await Promise.all(
@@ -322,10 +374,7 @@ export function FilterBar({ categories }: { categories: string[] }) {
         fileName: comp.filePath,
         context: { ...dashboardRoute.context },
       });
-      const diagnostics = annotateDuplicateDiagnostics(
-        result.diagnostics || [],
-        dashboardRouteLabel
-      );
+      const diagnostics = annotateDuplicateDiagnostics(result.diagnostics || []);
       console.log(`  ${comp.fileName} diagnostics: ${diagnostics.length}`);
       return { ...comp, diagnostics };
     })
@@ -333,16 +382,12 @@ export function FilterBar({ categories }: { categories: string[] }) {
 
   // Analyze route 2: Products
   console.log('\n📊 Analyzing Route 2: /products');
-  const productsRouteLabel = '/products';
   const prodPageResult = await analyze({
     code: productsRoute.pageCode,
     fileName: 'app/products/page.tsx',
     context: { ...productsRoute.context },
   });
-  const prodPageDiagnostics = annotateDuplicateDiagnostics(
-    prodPageResult.diagnostics || [],
-    productsRouteLabel
-  );
+  const prodPageDiagnostics = annotateDuplicateDiagnostics(prodPageResult.diagnostics || []);
   console.log(`  Page diagnostics: ${prodPageDiagnostics.length}`);
 
   const sharedProductChart = dashboardRoute.components[0];
@@ -355,10 +400,35 @@ export function FilterBar({ categories }: { categories: string[] }) {
         fileName: comp.filePath,
         context: { ...productsRoute.context },
       });
-      const diagnostics = annotateDuplicateDiagnostics(
-        result.diagnostics || [],
-        productsRouteLabel
-      );
+      const diagnostics = annotateDuplicateDiagnostics(result.diagnostics || []);
+      console.log(`  ${comp.fileName} diagnostics: ${diagnostics.length}`);
+      return { ...comp, diagnostics };
+    })
+  );
+
+  // Analyze route 3: Reports
+  console.log('\n📊 Analyzing Route 3: /reports');
+  const reportsPageResult = await analyze({
+    code: reportsRoute.pageCode,
+    fileName: 'app/reports/page.tsx',
+    context: { ...reportsRoute.context },
+  });
+  const reportsPageDiagnostics = annotateDuplicateDiagnostics(reportsPageResult.diagnostics || []);
+  console.log(`  Page diagnostics: ${reportsPageDiagnostics.length}`);
+
+  const reportsComponentsForAnalysis = [
+    { ...dashboardRoute.components[1] },
+    ...reportsRoute.components,
+  ];
+
+  const reportsCompResults = await Promise.all(
+    reportsComponentsForAnalysis.map(async (comp) => {
+      const result = await analyze({
+        code: comp.code,
+        fileName: comp.filePath,
+        context: { ...reportsRoute.context },
+      });
+      const diagnostics = annotateDuplicateDiagnostics(result.diagnostics || []);
       console.log(`  ${comp.fileName} diagnostics: ${diagnostics.length}`);
       return { ...comp, diagnostics };
     })
@@ -383,6 +453,12 @@ export function FilterBar({ categories }: { categories: string[] }) {
         rootNodeId: 'route-products',
         chunks: ['main', 'products'],
         totalBytes: 178000,
+      },
+      {
+        route: '/reports',
+        rootNodeId: 'route-reports',
+        chunks: ['main', 'reports'],
+        totalBytes: 162000,
       },
     ],
     nodes: {
@@ -433,7 +509,7 @@ export function FilterBar({ categories }: { categories: string[] }) {
         kind: 'client',
         file: 'app/dashboard/SalesMetrics.tsx',
         name: 'SalesMetrics',
-        bytes: 98000,
+        bytes: 108000,
         diagnostics: dashCompResults[1]?.diagnostics
           .filter((d) => d.level !== 'info')
           .map((d) => ({
@@ -545,6 +621,67 @@ export function FilterBar({ categories }: { categories: string[] }) {
             loc: d.loc
               ? {
                   file: 'app/products/FilterBar.tsx',
+                  range: d.loc.range,
+                }
+              : undefined,
+          })),
+      },
+      'route-reports': {
+        id: 'route-reports',
+        kind: 'route',
+        file: 'app/reports/page.tsx',
+        name: 'Reports',
+        bytes: 2100,
+        children: ['comp-sales-metrics-reports', 'comp-revenue-breakdown'],
+        diagnostics: reportsPageDiagnostics
+          .filter((d) => d.level !== 'info')
+          .map((d) => ({
+            rule: d.rule,
+            level: d.level as 'error' | 'warn',
+            message: d.message,
+            loc: d.loc
+              ? {
+                  file: 'app/reports/page.tsx',
+                  range: d.loc.range,
+                }
+              : undefined,
+          })),
+      },
+      'comp-sales-metrics-reports': {
+        id: 'comp-sales-metrics-reports',
+        kind: 'client',
+        file: 'app/dashboard/SalesMetrics.tsx',
+        name: 'SalesMetrics',
+        bytes: 108000,
+        diagnostics: reportsCompResults[0]?.diagnostics
+          .filter((d) => d.level !== 'info')
+          .map((d) => ({
+            rule: d.rule,
+            level: d.level as 'error' | 'warn',
+            message: d.message,
+            loc: d.loc
+              ? {
+                  file: 'app/dashboard/SalesMetrics.tsx',
+                  range: d.loc.range,
+                }
+              : undefined,
+          })),
+      },
+      'comp-revenue-breakdown': {
+        id: 'comp-revenue-breakdown',
+        kind: 'client',
+        file: 'app/reports/RevenueBreakdown.tsx',
+        name: 'RevenueBreakdown',
+        bytes: 62000,
+        diagnostics: reportsCompResults[1]?.diagnostics
+          .filter((d) => d.level !== 'info')
+          .map((d) => ({
+            rule: d.rule,
+            level: d.level as 'error' | 'warn',
+            message: d.message,
+            loc: d.loc
+              ? {
+                  file: 'app/reports/RevenueBreakdown.tsx',
                   range: d.loc.range,
                 }
               : undefined,

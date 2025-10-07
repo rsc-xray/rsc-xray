@@ -256,6 +256,46 @@ export function Env() {
 
     expect(response.status).toBe(200);
     expect(result.diagnosticsByFile).toBeDefined();
+
+    const makeDiagnosticKey = (diag: {
+      rule?: string;
+      message?: string;
+      loc?: { file?: string; range?: { from?: number; to?: number } };
+    }) => {
+      const rule = diag.rule ?? 'suggestion';
+      const message = diag.message ?? '';
+      const locFile = diag.loc?.file ?? '';
+      const range = diag.loc?.range;
+      const rangeKey = range ? `${range.from}:${range.to}` : '';
+      return `${rule}|${message}|${locFile}|${rangeKey}`;
+    };
+
+    const flattenedDiagnostics =
+      (result.diagnostics as
+        | Array<{
+            rule?: string;
+            message?: string;
+            loc?: { file?: string; range?: { from?: number; to?: number } };
+          }>
+        | undefined) ?? [];
+    const flattenedKeys = flattenedDiagnostics.map(makeDiagnosticKey);
+    expect(new Set(flattenedKeys).size).toBe(flattenedKeys.length);
+
+    Object.entries(
+      (result.diagnosticsByFile ?? {}) as Record<
+        string,
+        Array<{
+          rule?: string;
+          message?: string;
+          loc?: { file?: string; range?: { from?: number; to?: number } };
+        }>
+      >
+    ).forEach(([fileKey, diags]) => {
+      const perFileKeys = diags.map(makeDiagnosticKey);
+      expect(new Set(perFileKeys).size).toBe(perFileKeys.length);
+      expect(diags.length).toBeGreaterThan(0);
+      expect(fileKey).toBeTruthy();
+    });
     expect(result.diagnosticsByFile['demo.tsx']).toBeDefined();
     expect(result.diagnosticsByFile['demo.tsx'].length).toBeGreaterThan(0);
     expect(result.diagnosticsByFile['Env.tsx']).toBeDefined();
@@ -425,6 +465,20 @@ export default function Page() {
       ? { ...(realWorldScenario?.context ?? {}), ...productsRoute.context }
       : realWorldScenario?.context;
 
+    const reportsRoute = realWorldScenario?.additionalRoutes?.find(
+      (route) => route.route === '/reports'
+    );
+    expect(reportsRoute).toBeDefined();
+
+    const revenueBreakdownFile = reportsRoute?.contextFiles?.find(
+      (file) => file.fileName === 'RevenueBreakdown.tsx'
+    );
+    expect(revenueBreakdownFile).toBeDefined();
+
+    const mergedReportsContext = reportsRoute?.context
+      ? { ...(realWorldScenario?.context ?? {}), ...reportsRoute.context }
+      : realWorldScenario?.context;
+
     const request = new NextRequest('http://localhost:3001/api/analyze', {
       method: 'POST',
       body: JSON.stringify({
@@ -448,6 +502,18 @@ export default function Page() {
             fileName: 'products/page.tsx',
             code: productsRoute?.code ?? '',
             context: mergedProductsContext,
+          },
+          {
+            fileKey: 'reports/page.tsx',
+            fileName: 'reports/page.tsx',
+            code: reportsRoute?.code ?? '',
+            context: mergedReportsContext,
+          },
+          {
+            fileKey: 'RevenueBreakdown.tsx',
+            fileName: 'RevenueBreakdown.tsx',
+            code: revenueBreakdownFile?.code ?? '',
+            context: mergedReportsContext,
           },
         ],
       }),
@@ -475,12 +541,49 @@ export default function Page() {
       productsRouteDiagnostics.every((diag: { rule?: string }) => diag.rule !== undefined)
     ).toBe(true);
 
-    const productChartDiagnostics = result.diagnosticsByFile?.['ProductChart.tsx'] ?? [];
-    expect(
-      productChartDiagnostics.some(
-        (diag: { rule?: string }) => diag.rule === 'duplicate-dependencies'
-      )
-    ).toBe(true);
+    console.log('diagnostics keys', Object.keys(result.diagnosticsByFile ?? {}));
+    console.log('Revenue diag', result.diagnosticsByFile?.['RevenueBreakdown.tsx']);
+    console.log(
+      'Reports revenue diag',
+      result.diagnosticsByFile?.['app/reports/RevenueBreakdown.tsx']
+    );
+
+    const expectedDuplicates: Array<{
+      file: string;
+      packageName: string;
+      expectedRoutes: string[];
+    }> = [
+      {
+        file: 'ProductChart.tsx',
+        packageName: 'chart-lib',
+        expectedRoutes: ['/dashboard', '/products'],
+      },
+      {
+        file: 'SalesMetrics.tsx',
+        packageName: 'analytics-lib',
+        expectedRoutes: ['/dashboard', '/reports'],
+      },
+      { file: 'ProductGrid.tsx', packageName: 'date-fns', expectedRoutes: ['/products'] },
+      { file: 'RevenueBreakdown.tsx', packageName: 'analytics-lib', expectedRoutes: ['/reports'] },
+    ];
+
+    expectedDuplicates.forEach(({ file, packageName, expectedRoutes }) => {
+      const diagnosticsForFile = result.diagnosticsByFile?.[file] ?? [];
+      const duplicateMatches = diagnosticsForFile.filter(
+        (diag: { rule?: string; message?: string }) =>
+          diag.rule === 'duplicate-dependencies' && (diag.message?.includes(packageName) ?? false)
+      );
+
+      const routesFound = Array.from(
+        new Set(
+          duplicateMatches
+            .map((diag) => diag.message?.match(/in route '([^']+)'/i)?.[1])
+            .filter((route): route is string => Boolean(route))
+        )
+      ).sort();
+
+      expect(routesFound).toEqual([...expectedRoutes].sort());
+    });
   });
 
   it('should handle analysis errors gracefully', async () => {

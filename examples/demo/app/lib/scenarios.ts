@@ -17,6 +17,8 @@ export interface Scenario {
   description: string;
   /** Main file name (e.g., 'page.tsx', 'demo.tsx') - used consistently across demo and reports */
   fileName?: string;
+  /** Optional absolute file path (e.g., app/dashboard/page.tsx) */
+  filePath?: string;
   code: string;
   explanation: {
     what: string;
@@ -53,6 +55,7 @@ export interface Scenario {
   /** Additional context files to show in tabs (read-only) */
   contextFiles?: Array<{
     fileName: string;
+    filePath?: string;
     code: string;
     description: string;
   }>;
@@ -64,9 +67,11 @@ export interface Scenario {
   additionalRoutes?: Array<{
     route: string;
     fileName: string;
+    filePath?: string;
     code: string;
     contextFiles?: Array<{
       fileName: string;
+      filePath?: string;
       code: string;
       description: string;
     }>;
@@ -377,7 +382,7 @@ export default async function Page() {
   // Real-World Example
   {
     id: 'real-world-app',
-    title: 'Real-World E-Commerce App (2 Routes)',
+    title: 'Real-World E-Commerce App (3 Routes)',
     category: 'real-world',
     isPro: false,
     rule: 'multiple',
@@ -435,7 +440,7 @@ export default async function Dashboard() {
       why: `This demonstrates real-world patterns:
 • Route 1 (/dashboard): Has duplicate chart-lib, date-fns, lodash across 3 components
 • Route 2 (/products): Shares ProductChart but has its own ProductGrid component
-• Duplicates are route-specific: chart-lib is duplicated in /dashboard but not /products
+• Route 3 (/reports): Reuses analytics-lib from the dashboard, creating cross-route duplication
 • Shows serialization errors, config conflicts, missing Suspense, and forbidden imports`,
       how: `Best practices:
 1. Move shared components to app/components/ to enable proper code splitting
@@ -451,11 +456,12 @@ export default async function Dashboard() {
       'CI budget enforcement to prevent regressions',
       'Trend tracking across commits to measure improvement',
     ],
-    contextDescription: `Analyzing 2 routes with shared and unique components:
-• Route 1 (/dashboard): ProductChart, SalesMetrics, UserActivity (3 dupl: chart-lib, date-fns, lodash)
-• Route 2 (/products): ProductChart (shared), ProductGrid, FilterBar (1 dupl: date-fns)
+    contextDescription: `Analyzing 3 routes with shared and unique components:
+• Route 1 (/dashboard): ProductChart, SalesMetrics, UserActivity (duplicates: chart-lib, date-fns, lodash, analytics-lib)
+• Route 2 (/products): ProductChart (shared), ProductGrid, FilterBar (duplicate: date-fns)
+• Route 3 (/reports): RevenueBreakdown (shares analytics-lib with dashboard SalesMetrics)
 • Route segment config conflicts, missing Suspense, serialization violations
-• Demonstrates route-specific duplicate detection`,
+• Demonstrates per-route and cross-route duplicate detection`,
     showReport: true,
     context: {
       clientComponentPaths: ['./ProductChart', './SalesMetrics', './UserActivity'],
@@ -471,8 +477,8 @@ export default async function Dashboard() {
         },
         {
           filePath: 'app/dashboard/SalesMetrics.tsx',
-          chunks: ['chart-lib', 'lodash'],
-          totalBytes: 98000,
+          chunks: ['chart-lib', 'lodash', 'analytics-lib'],
+          totalBytes: 108000,
         },
         {
           filePath: 'app/dashboard/UserActivity.tsx',
@@ -515,18 +521,22 @@ export function ProductChart({ data, onExport, timestamp }: Props) {
         code: `'use client';
 import { Chart } from 'chart-lib'; // ⚠️ Duplicate: 80KB
 import { merge } from 'lodash'; // Shared dependency (71KB)
+import { formatCurrency } from 'analytics-lib'; // ⚠️ Cross-route duplicate with reports
 
 export function SalesMetrics({ metrics }: { metrics: any }) {
   const config = merge({}, defaultConfig, metrics.config);
+  const totalRevenue = formatCurrency(metrics.totalRevenue);
   
   return (
     <div>
       <h2>Sales Overview</h2>
       <Chart type="bar" data={config} />
+      <p>Revenue: {totalRevenue}</p>
     </div>
   );
 }`,
-        description: '⚠️ 1 violation: duplicate chart-lib dependency (80KB)',
+        description:
+          '⚠️ 2 violations: duplicate chart-lib dependency (80KB) and analytics-lib shared with reports route',
       },
       {
         fileName: 'UserActivity.tsx',
@@ -658,6 +668,74 @@ export function FilterBar({ categories }: { categories: string[] }) {
               filePath: 'app/products/FilterBar.tsx',
               chunks: [],
               totalBytes: 8000,
+            },
+          ],
+          reactVersion: '18.3.1',
+        },
+      },
+      {
+        route: '/reports',
+        fileName: 'page.tsx',
+        code: `// app/reports/page.tsx
+// Revenue Reports Page
+
+import { Suspense } from 'react';
+import { SalesMetrics } from '../dashboard/SalesMetrics';
+import { RevenueBreakdown } from './RevenueBreakdown';
+
+export default function Reports() {
+  return (
+    <div>
+      <h1>Revenue Reports</h1>
+      <Suspense fallback={<div>Loading metrics…</div>}>
+        <SalesMetrics metrics={{ totalRevenue: 420000, config: {} }} />
+      </Suspense>
+      <RevenueBreakdown />
+    </div>
+  );
+}`,
+        contextFiles: [
+          {
+            fileName: 'RevenueBreakdown.tsx',
+            code: `'use client';
+import { formatCurrency } from 'analytics-lib'; // ⚠️ Duplicate across /dashboard and /reports
+
+const revenueByRegion = [
+  { region: 'NA', total: 220000 },
+  { region: 'EMEA', total: 135000 },
+  { region: 'APAC', total: 65000 },
+];
+
+export function RevenueBreakdown() {
+  return (
+    <section>
+      <h2>Revenue by Region</h2>
+      <ul>
+        {revenueByRegion.map((entry) => (
+          <li key={entry.region}>
+            <strong>{entry.region}:</strong> {formatCurrency(entry.total)}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}`,
+            description:
+              '⚠️ Cross-route duplicate: analytics-lib shared with dashboard SalesMetrics',
+          },
+        ],
+        context: {
+          clientComponentPaths: ['../dashboard/SalesMetrics', './RevenueBreakdown'],
+          clientBundles: [
+            {
+              filePath: 'app/reports/RevenueBreakdown.tsx',
+              chunks: ['analytics-lib'],
+              totalBytes: 62000,
+            },
+            {
+              filePath: 'app/dashboard/SalesMetrics.tsx',
+              chunks: ['analytics-lib'],
+              totalBytes: 108000,
             },
           ],
           reactVersion: '18.3.1',

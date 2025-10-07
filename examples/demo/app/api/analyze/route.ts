@@ -68,7 +68,6 @@ function expandDuplicateDependenciesDiagnostics(
     }
 
     if (!sourceCode || !fileName) {
-      console.log('[expandDuplicateDeps] No source code found for:', diag.loc?.file);
       expanded.push(diag);
       continue;
     }
@@ -105,7 +104,6 @@ function expandDuplicateDependenciesDiagnostics(
 
           expanded.push({
             ...diag,
-            message: `'${packageName}' is duplicated across multiple components. Consider extracting to a shared module.`,
             loc: {
               file: matchedFile || fileName, // Use the matched file path to preserve original path format
               range: {
@@ -299,11 +297,19 @@ interface AnalyzedTargetResult {
 }
 
 function extractRouteFromComponentPath(componentPath: string): string | undefined {
-  const match = componentPath.match(/^app\/?([^/]+)/);
-  if (!match) {
-    return undefined;
+  const normalized = componentPath.replace(/^\.\//, '');
+
+  const appMatch = normalized.match(/^app\/?([^/]+)/);
+  if (appMatch) {
+    return `/${appMatch[1]}`;
   }
-  return `/${match[1]}`;
+
+  const basicMatch = normalized.match(/^([^/]+)\//);
+  if (basicMatch) {
+    return `/${basicMatch[1]}`;
+  }
+
+  return undefined;
 }
 
 function buildCodeLookup(targets: AnalysisTargetPayload[]): Map<string, string> {
@@ -331,9 +337,73 @@ function buildCodeLookup(targets: AnalysisTargetPayload[]): Map<string, string> 
   return lookup;
 }
 
+function buildRouteLookup(targets: AnalysisTargetPayload[]): Map<string, Set<string>> {
+  const lookup = new Map<string, Set<string>>();
+
+  const addRoute = (filePath: string, routeValue: string | undefined) => {
+    if (!routeValue) {
+      return;
+    }
+
+    const normalized = filePath.replace(/^\.\//, '');
+    const existing = lookup.get(normalized) ?? new Set<string>();
+    existing.add(routeValue);
+    lookup.set(normalized, existing);
+
+    const baseName = normalized.split('/').pop();
+    if (baseName) {
+      const baseExisting = lookup.get(baseName) ?? new Set<string>();
+      baseExisting.add(routeValue);
+      lookup.set(baseName, baseExisting);
+    }
+  };
+
+  targets.forEach((target) => {
+    const routeValue =
+      getRouteFromContext(target.context) ?? extractRouteFromComponentPath(target.fileName);
+    addRoute(target.fileName, routeValue);
+
+    if (target.fileKey) {
+      addRoute(target.fileKey, routeValue);
+    }
+
+    const bundles = Array.isArray(target.context?.clientBundles)
+      ? (target.context?.clientBundles as Array<{ filePath: string }>)
+      : [];
+
+    bundles.forEach((bundle) => {
+      addRoute(bundle.filePath, routeValue);
+    });
+  });
+
+  return lookup;
+}
+
+type ContextWithClientBundles = LspAnalysisRequest['context'] & {
+  clientBundles: Array<{ filePath: string; chunks: string[] }>;
+};
+
+function hasClientBundles(
+  context: LspAnalysisRequest['context'] | undefined
+): context is ContextWithClientBundles {
+  return Boolean(context && Array.isArray(context.clientBundles));
+}
+
+function getRouteFromContext(
+  context: LspAnalysisRequest['context'] | undefined
+): string | undefined {
+  if (!context || typeof context !== 'object') {
+    return undefined;
+  }
+
+  const maybeRoute = (context as { route?: unknown }).route;
+  return typeof maybeRoute === 'string' ? maybeRoute : undefined;
+}
+
 function generateDuplicateDiagnostics(
   bundles: Array<{ filePath: string; chunks: string[] }> | undefined,
-  codeLookup: Map<string, string>
+  codeLookup: Map<string, string>,
+  routeLookup: Map<string, Set<string>>
 ): Array<{ key: string; identity: string; diag: Diagnostic | Suggestion }> {
   if (!bundles || bundles.length === 0) {
     return [];
@@ -366,10 +436,21 @@ function generateDuplicateDiagnostics(
       }
 
       const baseName = componentPath.split('/').pop() ?? componentPath;
-      const code =
-        codeLookup.get(componentPath) ??
-        codeLookup.get(baseName) ??
-        codeLookup.get(`./${componentPath}`);
+      let resolvedFilePath = componentPath;
+      let code = codeLookup.get(componentPath);
+      if (!code) {
+        const baseLookup = codeLookup.get(baseName);
+        if (baseLookup) {
+          code = baseLookup;
+          resolvedFilePath = baseName;
+        } else {
+          const prefixedLookup = codeLookup.get(`./${componentPath}`);
+          if (prefixedLookup) {
+            code = prefixedLookup;
+            resolvedFilePath = componentPath;
+          }
+        }
+      }
 
       let range = { from: 0, to: 0 };
       if (code) {
@@ -422,26 +503,50 @@ function generateDuplicateDiagnostics(
         }
       }
 
-      const routeContext = extractRouteFromComponentPath(componentPath);
-      const message =
-        `Duplicate dependencies${routeContext ? ` in route '${routeContext}'` : ''}: ${chunk} ` +
-        `(also imported by ${otherComponents
-          .map((comp) => comp.split('/').pop() ?? comp)
-          .join(', ')}). ` +
-        `Consider extracting shared code to a common module or using dynamic imports.`;
+      const routeCandidates = new Set<string>();
+      const addRoutesFromLookup = (key: string | undefined) => {
+        if (!key) return;
+        const routes = routeLookup.get(key.replace(/^\.\//, ''));
+        routes?.forEach((route) => {
+          if (route) {
+            routeCandidates.add(route);
+          }
+        });
+      };
 
-      results.push({
-        key: baseName,
-        identity: `${componentPath}:${chunk}:${otherComponents.join(',')}`,
-        diag: {
-          rule: 'duplicate-dependencies',
-          level: 'warn',
-          message,
-          loc: {
-            file: componentPath,
-            range,
+      addRoutesFromLookup(componentPath);
+      addRoutesFromLookup(baseName);
+      addRoutesFromLookup(`./${componentPath}`);
+      addRoutesFromLookup(resolvedFilePath);
+
+      const extractedRoute = extractRouteFromComponentPath(componentPath);
+      if (extractedRoute && extractedRoute !== '/components') {
+        routeCandidates.add(extractedRoute);
+      }
+
+      const routesToEmit = routeCandidates.size > 0 ? Array.from(routeCandidates) : [undefined];
+
+      routesToEmit.forEach((routeContext) => {
+        const message =
+          `Duplicate dependencies${routeContext ? ` in route '${routeContext}'` : ''}: ${chunk} ` +
+          `(also imported by ${otherComponents
+            .map((comp) => comp.split('/').pop() ?? comp)
+            .join(', ')}). ` +
+          `Consider extracting shared code to a common module or using dynamic imports.`;
+
+        results.push({
+          key: baseName,
+          identity: `${componentPath}:${chunk}:${otherComponents.join(',')}:${routeContext ?? ''}`,
+          diag: {
+            rule: 'duplicate-dependencies',
+            level: 'warn',
+            message,
+            loc: {
+              file: resolvedFilePath,
+              range,
+            },
           },
-        },
+        });
       });
     }
   }
@@ -526,13 +631,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       analysisTargets?: AnalysisTargetPayload[];
     };
 
-    console.log('[analyze API] Request received', {
+    const scenarioId = typeof body.scenario === 'string' ? body.scenario : undefined;
+    const debugLog = scenarioId === 'real-world-app' ? console.log.bind(console) : () => undefined;
+
+    debugLog('[analyze API] Request received', {
       scenario: body.scenario,
       fileName: body.fileName,
       targets: Array.isArray(body.analysisTargets) ? body.analysisTargets.length : 0,
     });
-
-    const scenarioId = typeof body.scenario === 'string' ? body.scenario : undefined;
 
     if (Array.isArray(body.analysisTargets) && body.analysisTargets.length > 0) {
       const sharedContext = body.context;
@@ -553,7 +659,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         );
       }
 
+      debugLog(
+        '[analysis-targets]',
+        body.analysisTargets.map((target) => ({
+          fileKey: target.fileKey,
+          fileName: target.fileName,
+          hasBundles: hasClientBundles(target.context),
+        }))
+      );
+
       const codeLookup = buildCodeLookup(body.analysisTargets);
+      const routeLookup = buildRouteLookup(body.analysisTargets);
 
       const analyses = await Promise.all(
         body.analysisTargets.map((target) =>
@@ -561,23 +677,60 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         )
       );
 
-      console.log('[analyze API] Multi-target analysis complete', {
+      debugLog('[analyze API] Multi-target analysis complete', {
         scenario: scenarioId,
         files: analyses.map((entry) => ({ key: entry.key, duration: entry.duration })),
       });
 
       const diagnosticsByFile: Record<string, Array<Diagnostic | Suggestion>> = {};
       const durationsByFile: Record<string, number> = {};
+      const diagnosticKeysByFile = new Map<string, Set<string>>();
+      const durationContributorsByFile = new Map<string, Set<string>>();
       const rulesExecutedSet = new Set<string>();
       let totalDuration = 0;
       let version = analyses[0]?.version ?? '0.6.0';
 
-      const assignDiagnostic = (key: string, diag: Diagnostic | Suggestion, duration: number) => {
+      const getDiagnosticKey = (diag: Diagnostic | Suggestion): string => {
+        const rule = 'rule' in diag ? diag.rule : 'suggestion';
+        const message = diag.message ?? '';
+        const locFile = diag.loc?.file ?? '';
+        const range = diag.loc?.range;
+        const rangeKey = range ? `${range.from}:${range.to}` : '';
+        return `${rule}|${message}|${locFile}|${rangeKey}`;
+      };
+
+      const addDurationForFile = (fileKey: string, duration: number, contributorId: string) => {
+        const contributors = durationContributorsByFile.get(fileKey) ?? new Set<string>();
+        if (!contributors.has(contributorId)) {
+          durationsByFile[fileKey] = (durationsByFile[fileKey] ?? 0) + duration;
+          contributors.add(contributorId);
+          durationContributorsByFile.set(fileKey, contributors);
+        }
+      };
+
+      const assignDiagnostic = (
+        key: string,
+        diag: Diagnostic | Suggestion,
+        duration: number,
+        contributorId: string
+      ) => {
+        const diagKey = getDiagnosticKey(diag);
+        const existingKeys = diagnosticKeysByFile.get(key) ?? new Set<string>();
+
+        if (existingKeys.has(diagKey)) {
+          addDurationForFile(key, duration, contributorId);
+          return;
+        }
+
+        existingKeys.add(diagKey);
+        diagnosticKeysByFile.set(key, existingKeys);
+
         if (!diagnosticsByFile[key]) {
           diagnosticsByFile[key] = [];
         }
+
         diagnosticsByFile[key].push(diag);
-        durationsByFile[key] = (durationsByFile[key] ?? 0) + duration;
+        addDurationForFile(key, duration, contributorId);
       };
 
       analyses.forEach((entry) => {
@@ -589,8 +742,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         if (entry.diagnostics.length === 0) {
           if (!diagnosticsByFile[entry.key]) {
             diagnosticsByFile[entry.key] = [];
-            durationsByFile[entry.key] = (durationsByFile[entry.key] ?? 0) + duration;
           }
+          addDurationForFile(entry.key, duration, entry.key);
           return;
         }
 
@@ -605,39 +758,69 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
               normalizedLoc.endsWith(`/${normalizedKey}`) ||
               normalizedKey.endsWith(`/${normalizedLoc}`)
             ) {
-              assignDiagnostic(entry.key, diag, duration);
+              assignDiagnostic(entry.key, diag, duration, entry.key);
               return;
             }
 
             const fileName = normalizedLoc.split('/').pop();
             if (fileName) {
-              assignDiagnostic(fileName, diag, duration);
+              assignDiagnostic(fileName, diag, duration, entry.key);
               return;
             }
           }
 
-          assignDiagnostic(entry.key, diag, duration);
+          assignDiagnostic(entry.key, diag, duration, entry.key);
         });
       });
 
-      const processedDuplicateKeys = new Set<string>();
+      const bundleMap = new Map<string, { filePath: string; chunks: string[] }>();
 
-      const applyDuplicateDiagnostics = (
+      const collectBundles = (
         bundles: Array<{ filePath: string; chunks: string[] }> | undefined
       ) => {
-        const duplicates = generateDuplicateDiagnostics(bundles, codeLookup);
-        duplicates.forEach(({ key, identity, diag }) => {
-          if (processedDuplicateKeys.has(identity)) {
-            return;
-          }
-          processedDuplicateKeys.add(identity);
-          assignDiagnostic(key, diag, 0);
+        if (!bundles) {
+          return;
+        }
+
+        bundles.forEach((bundle) => {
+          bundleMap.set(bundle.filePath, bundle);
         });
       };
 
-      applyDuplicateDiagnostics(sharedContext?.clientBundles);
+      const sharedContextBundles = hasClientBundles(sharedContext)
+        ? sharedContext.clientBundles
+        : undefined;
+      collectBundles(sharedContextBundles);
       body.analysisTargets.forEach((target) => {
-        applyDuplicateDiagnostics(target.context?.clientBundles);
+        if (hasClientBundles(target.context)) {
+          debugLog(
+            '[analysis-target-bundles]',
+            target.fileKey ?? target.fileName,
+            target.context.clientBundles
+          );
+          collectBundles(target.context.clientBundles);
+        }
+      });
+
+      const processedDuplicateKeys = new Set<string>();
+      const bundleEntries = Array.from(bundleMap.values());
+      debugLog('bundleMap size', bundleEntries.length, Array.from(bundleMap.keys()));
+      const duplicateDiagnostics = generateDuplicateDiagnostics(
+        bundleEntries,
+        codeLookup,
+        routeLookup
+      );
+
+      if (duplicateDiagnostics.length > 0) {
+        debugLog('[duplicate-diagnostics]', duplicateDiagnostics);
+      }
+
+      duplicateDiagnostics.forEach(({ key, identity, diag }) => {
+        if (processedDuplicateKeys.has(identity)) {
+          return;
+        }
+        processedDuplicateKeys.add(identity);
+        assignDiagnostic(key, diag, 0, identity);
       });
 
       const flattenedDiagnostics = Object.values(diagnosticsByFile).flat();
@@ -672,7 +855,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       scenarioId
     );
 
-    console.log('[analyze API] Single-target analysis complete', {
+    debugLog('[analyze API] Single-target analysis complete', {
       scenario: scenarioId,
       fileKey: analyzedTarget.key,
       duration: analyzedTarget.duration,
