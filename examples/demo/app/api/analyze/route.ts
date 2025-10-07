@@ -386,19 +386,38 @@ function generateDuplicateDiagnostics(
           scriptKind
         );
         let matchedSpecifier: ts.StringLiteral | undefined;
+        let fallbackSpecifier: ts.StringLiteral | undefined;
+
+        const chunkBase = chunk.replace(/^.*\//, '');
+        const chunkName = chunkBase.replace(/\.(js|mjs|cjs|ts|tsx)$/i, '');
 
         sourceFile.forEachChild((node) => {
           if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
-            if (node.moduleSpecifier.text === chunk && !matchedSpecifier) {
+            if (!fallbackSpecifier) {
+              fallbackSpecifier = node.moduleSpecifier;
+            }
+
+            const specText = node.moduleSpecifier.text;
+
+            if (
+              !matchedSpecifier &&
+              (specText === chunk ||
+                specText === chunkBase ||
+                specText === chunkName ||
+                `${specText}.js` === chunkBase ||
+                `${specText}.js` === chunk)
+            ) {
               matchedSpecifier = node.moduleSpecifier;
             }
           }
         });
 
-        if (matchedSpecifier) {
+        const targetSpecifier = matchedSpecifier ?? fallbackSpecifier;
+
+        if (targetSpecifier) {
           range = {
-            from: matchedSpecifier.getStart(sourceFile),
-            to: matchedSpecifier.getEnd(),
+            from: targetSpecifier.getStart(sourceFile),
+            to: targetSpecifier.getEnd(),
           };
         }
       }
