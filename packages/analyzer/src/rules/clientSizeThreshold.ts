@@ -164,14 +164,14 @@ export function detectClientSizeIssues(
       continue;
     }
 
+    const normalizeComponentName = (value: string): string => {
+      const segment = value.split('/').pop() ?? value;
+      return segment.replace(/\.(tsx?|jsx?)$/i, '');
+    };
+
     for (const component of components) {
       // Get other component names (extract filename from path for clarity)
-      const otherComponents = components
-        .filter((c) => c !== component)
-        .map((path) => {
-          const match = path.match(/([^/]+)\.(tsx?|jsx?)$/);
-          return match ? match[1] : path;
-        });
+      const otherComponents = components.filter((c) => c !== component).map(normalizeComponentName);
 
       // Skip if no other components (shouldn't happen, but safety check)
       if (otherComponents.length === 0) {

@@ -527,10 +527,15 @@ function generateDuplicateDiagnostics(
       const routesToEmit = routeCandidates.size > 0 ? Array.from(routeCandidates) : [undefined];
 
       routesToEmit.forEach((routeContext) => {
+        const formatComponentName = (value: string): string => {
+          const segment = value.split('/').pop() ?? value;
+          return segment.replace(/\.(tsx?|jsx?)$/i, '');
+        };
+
         const message =
           `Duplicate dependencies${routeContext ? ` in route '${routeContext}'` : ''}: ${chunk} ` +
           `(also imported by ${otherComponents
-            .map((comp) => comp.split('/').pop() ?? comp)
+            .map((comp) => formatComponentName(comp))
             .join(', ')}). ` +
           `Consider extracting shared code to a common module or using dynamic imports.`;
 
