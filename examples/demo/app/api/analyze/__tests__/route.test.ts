@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from '../route';
 import { NextRequest } from 'next/server';
 import type { LspAnalysisRequest } from '@rsc-xray/lsp-server';
+import { scenarios } from '../../../lib/scenarios';
 
 describe('POST /api/analyze', () => {
   beforeEach(() => {
@@ -208,9 +209,100 @@ export function DateDisplay({ date }: { date: Date }) {
     expect(response.status).toBe(200);
     expect(result.diagnostics).toBeDefined();
     expect(result.rulesExecuted).toContain('duplicate-dependencies');
-    // Should detect 3 duplicate chunks shared across components
+    // Should detect duplicate chunks shared across components
     expect(result.diagnostics.length).toBeGreaterThan(0);
-    expect(result.diagnostics[0].message).toContain('3 dependencies');
+    expect(result.diagnostics[0].message).toMatch(/dependencies/);
+  });
+
+  it('should analyze multiple files in a single request and group diagnostics by file', async () => {
+    const mainCode = `'use client';
+import fs from 'fs';
+
+export function Reader() {
+  return fs.readFileSync('file.txt', 'utf8');
+}`;
+
+    const helperCode = `'use client';
+import os from 'os';
+
+export function Env() {
+  return <div>{os.platform()}</div>;
+}`;
+
+    const request = new NextRequest('http://localhost:3001/api/analyze', {
+      method: 'POST',
+      body: JSON.stringify({
+        scenario: 'client-forbidden-imports',
+        analysisTargets: [
+          {
+            fileKey: 'demo.tsx',
+            fileName: 'demo.tsx',
+            code: mainCode,
+          },
+          {
+            fileKey: 'Env.tsx',
+            fileName: 'Env.tsx',
+            code: helperCode,
+          },
+        ],
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const response = await POST(request);
+    const result = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(result.diagnosticsByFile).toBeDefined();
+
+    const makeDiagnosticKey = (diag: {
+      rule?: string;
+      message?: string;
+      loc?: { file?: string; range?: { from?: number; to?: number } };
+    }) => {
+      const rule = diag.rule ?? 'suggestion';
+      const message = diag.message ?? '';
+      const locFile = diag.loc?.file ?? '';
+      const range = diag.loc?.range;
+      const rangeKey = range ? `${range.from}:${range.to}` : '';
+      return `${rule}|${message}|${locFile}|${rangeKey}`;
+    };
+
+    const flattenedDiagnostics =
+      (result.diagnostics as
+        | Array<{
+            rule?: string;
+            message?: string;
+            loc?: { file?: string; range?: { from?: number; to?: number } };
+          }>
+        | undefined) ?? [];
+    const flattenedKeys = flattenedDiagnostics.map(makeDiagnosticKey);
+    expect(new Set(flattenedKeys).size).toBe(flattenedKeys.length);
+
+    Object.entries(
+      (result.diagnosticsByFile ?? {}) as Record<
+        string,
+        Array<{
+          rule?: string;
+          message?: string;
+          loc?: { file?: string; range?: { from?: number; to?: number } };
+        }>
+      >
+    ).forEach(([fileKey, diags]) => {
+      const perFileKeys = diags.map(makeDiagnosticKey);
+      expect(new Set(perFileKeys).size).toBe(perFileKeys.length);
+      expect(diags.length).toBeGreaterThan(0);
+      expect(fileKey).toBeTruthy();
+    });
+    expect(result.diagnosticsByFile['demo.tsx']).toBeDefined();
+    expect(result.diagnosticsByFile['demo.tsx'].length).toBeGreaterThan(0);
+    expect(result.diagnosticsByFile['Env.tsx']).toBeDefined();
+    expect(result.diagnosticsByFile['Env.tsx'].length).toBeGreaterThan(0);
+    expect(result.diagnostics.length).toBe(
+      result.diagnosticsByFile['demo.tsx'].length + result.diagnosticsByFile['Env.tsx'].length
+    );
   });
 
   it('should analyze react19-cache scenario and return diagnostics', async () => {
@@ -353,6 +445,191 @@ export default function Page() {
     expect(response.status).toBe(400);
     expect(result.error).toBeDefined();
     expect(result.error.code).toBe('INVALID_REQUEST');
+  });
+
+  it('scopes route config diagnostics to route files in the real-world scenario', async () => {
+    const realWorldScenario = scenarios.find((scenario) => scenario.id === 'real-world-app');
+    expect(realWorldScenario).toBeDefined();
+
+    const salesMetricsFile = realWorldScenario?.contextFiles?.find(
+      (file) => file.fileName === 'SalesMetrics.tsx'
+    );
+    expect(salesMetricsFile).toBeDefined();
+
+    const productsRoute = realWorldScenario?.additionalRoutes?.find(
+      (route) => route.route === '/products'
+    );
+    expect(productsRoute).toBeDefined();
+
+    const mergedProductsContext = productsRoute?.context
+      ? { ...(realWorldScenario?.context ?? {}), ...productsRoute.context }
+      : realWorldScenario?.context;
+
+    const reportsRoute = realWorldScenario?.additionalRoutes?.find(
+      (route) => route.route === '/reports'
+    );
+    expect(reportsRoute).toBeDefined();
+
+    const revenueBreakdownFile = reportsRoute?.contextFiles?.find(
+      (file) => file.fileName === 'RevenueBreakdown.tsx'
+    );
+    expect(revenueBreakdownFile).toBeDefined();
+
+    const mergedReportsContext = reportsRoute?.context
+      ? { ...(realWorldScenario?.context ?? {}), ...reportsRoute.context }
+      : realWorldScenario?.context;
+
+    const request = new NextRequest('http://localhost:3001/api/analyze', {
+      method: 'POST',
+      body: JSON.stringify({
+        scenario: 'real-world-app',
+        context: realWorldScenario?.context,
+        analysisTargets: [
+          {
+            fileKey: 'dashboard/page.tsx',
+            fileName: 'dashboard/page.tsx',
+            code: realWorldScenario?.code ?? '',
+            context: realWorldScenario?.context,
+          },
+          {
+            fileKey: 'SalesMetrics.tsx',
+            fileName: 'SalesMetrics.tsx',
+            code: salesMetricsFile?.code ?? '',
+            context: realWorldScenario?.context,
+          },
+          {
+            fileKey: 'products/page.tsx',
+            fileName: 'products/page.tsx',
+            code: productsRoute?.code ?? '',
+            context: mergedProductsContext,
+          },
+          {
+            fileKey: 'reports/page.tsx',
+            fileName: 'reports/page.tsx',
+            code: reportsRoute?.code ?? '',
+            context: mergedReportsContext,
+          },
+          {
+            fileKey: 'RevenueBreakdown.tsx',
+            fileName: 'RevenueBreakdown.tsx',
+            code: revenueBreakdownFile?.code ?? '',
+            context: mergedReportsContext,
+          },
+        ],
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const response = await POST(request);
+    const result = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(result.diagnosticsByFile).toBeDefined();
+
+    const salesMetricsDiagnostics = result.diagnosticsByFile?.['SalesMetrics.tsx'] ?? [];
+    expect(
+      salesMetricsDiagnostics.some(
+        (diag: { rule?: string }) => diag.rule === 'route-segment-config-conflict'
+      )
+    ).toBe(false);
+
+    const productsRouteDiagnostics = result.diagnosticsByFile?.['products/page.tsx'] ?? [];
+    expect(productsRouteDiagnostics.length).toBeGreaterThan(0);
+    expect(
+      productsRouteDiagnostics.every((diag: { rule?: string }) => diag.rule !== undefined)
+    ).toBe(true);
+
+    console.log('diagnostics keys', Object.keys(result.diagnosticsByFile ?? {}));
+    console.log('Revenue diag', result.diagnosticsByFile?.['RevenueBreakdown.tsx']);
+    console.log(
+      'Reports revenue diag',
+      result.diagnosticsByFile?.['app/reports/RevenueBreakdown.tsx']
+    );
+
+    const diagnosticsByFile = result.diagnosticsByFile ?? {};
+    const duplicateMessages = Object.values(diagnosticsByFile)
+      .flatMap((diags) => diags ?? [])
+      .filter((diag) => diag?.rule === 'duplicate-dependencies');
+
+    expect(duplicateMessages.length).toBeGreaterThan(0);
+    duplicateMessages.forEach((diag) => {
+      expect(diag.message).toContain('this file');
+      expect(diag.message).toContain('all import this dependency');
+    });
+  });
+
+  it('returns duplicate diagnostics for real-world dashboard components', async () => {
+    const realWorldScenario = scenarios.find((scenario) => scenario.id === 'real-world-app');
+    expect(realWorldScenario).toBeDefined();
+
+    const productChart = realWorldScenario?.contextFiles?.find(
+      (file) => file.fileName === 'ProductChart.tsx'
+    );
+    const salesMetrics = realWorldScenario?.contextFiles?.find(
+      (file) => file.fileName === 'SalesMetrics.tsx'
+    );
+    const userActivity = realWorldScenario?.contextFiles?.find(
+      (file) => file.fileName === 'UserActivity.tsx'
+    );
+
+    expect(productChart).toBeDefined();
+    expect(salesMetrics).toBeDefined();
+    expect(userActivity).toBeDefined();
+
+    const request = new NextRequest('http://localhost:3001/api/analyze', {
+      method: 'POST',
+      body: JSON.stringify({
+        scenario: 'real-world-app',
+        context: realWorldScenario?.context,
+        analysisTargets: [
+          {
+            fileKey: 'dashboard/page.tsx',
+            fileName: 'dashboard/page.tsx',
+            code: realWorldScenario?.code ?? '',
+            context: realWorldScenario?.context,
+          },
+          {
+            fileKey: 'ProductChart.tsx',
+            fileName: 'ProductChart.tsx',
+            code: productChart?.code ?? '',
+            context: realWorldScenario?.context,
+          },
+          {
+            fileKey: 'SalesMetrics.tsx',
+            fileName: 'SalesMetrics.tsx',
+            code: salesMetrics?.code ?? '',
+            context: realWorldScenario?.context,
+          },
+          {
+            fileKey: 'UserActivity.tsx',
+            fileName: 'UserActivity.tsx',
+            code: userActivity?.code ?? '',
+            context: realWorldScenario?.context,
+          },
+        ],
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(200);
+
+    const result = await response.json();
+    const diagnosticsByFile = result.diagnosticsByFile ?? {};
+
+    ['ProductChart.tsx', 'SalesMetrics.tsx', 'UserActivity.tsx'].forEach((fileKey) => {
+      const duplicates = (diagnosticsByFile[fileKey] ?? []).filter(
+        (diag: { rule?: string }) => diag?.rule === 'duplicate-dependencies'
+      );
+      expect(duplicates.length).toBeGreaterThan(0);
+      duplicates.forEach((diag: { message?: string }) => {
+        expect(diag.message).toContain('Duplicate dependencies');
+      });
+    });
   });
 
   it('should handle analysis errors gracefully', async () => {

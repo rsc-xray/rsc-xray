@@ -14,11 +14,13 @@ interface ScenarioSelectorConfig {
  * Groups scenarios by category:
  * - Fundamentals: Core RSC rules (free)
  * - Performance: Optimization rules (free)
+ * - Real-World: Complex multi-file examples (free)
  * - Pro: Advanced features (requires upgrade)
  */
 export function ScenarioSelector({ selectedScenarioId, onSelectScenario }: ScenarioSelectorConfig) {
   const fundamentals = scenarios.filter((s) => s.category === 'fundamentals');
   const performance = scenarios.filter((s) => s.category === 'performance');
+  const realWorld = scenarios.filter((s) => s.category === 'real-world');
   const pro = scenarios.filter((s) => s.category === 'pro');
 
   const selectedScenario = scenarios.find((s) => s.id === selectedScenarioId);
@@ -46,6 +48,14 @@ export function ScenarioSelector({ selectedScenarioId, onSelectScenario }: Scena
 
         <optgroup label="⚡ Performance">
           {performance.map((scenario) => (
+            <option key={scenario.id} value={scenario.id}>
+              {scenario.title}
+            </option>
+          ))}
+        </optgroup>
+
+        <optgroup label="🏗️ Real-World Examples">
+          {realWorld.map((scenario) => (
             <option key={scenario.id} value={scenario.id}>
               {scenario.title}
             </option>

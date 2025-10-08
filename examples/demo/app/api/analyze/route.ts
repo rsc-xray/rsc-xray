@@ -30,7 +30,11 @@ function expandDuplicateDependenciesDiagnostics(
   scenarioId: string
 ): Array<Diagnostic | Suggestion> {
   const scenario = scenarios.find((s: Scenario) => s.id === scenarioId);
-  if (scenarioId !== 'duplicate-dependencies' || !scenario) return diagnostics;
+  if (!scenario) return diagnostics;
+
+  // Only expand if there are duplicate-dependencies diagnostics
+  const hasDuplicateDeps = diagnostics.some((d) => d.rule === 'duplicate-dependencies');
+  if (!hasDuplicateDeps) return diagnostics;
 
   const expanded: Array<Diagnostic | Suggestion> = [];
 
@@ -60,17 +64,35 @@ function expandDuplicateDependenciesDiagnostics(
         sourceCode = contextFile.code;
         fileName = contextFile.fileName;
         matchedFile = diag.loc?.file; // Keep original file path for filtering
-        console.log(
-          '[expandDuplicateDeps] Matched context file:',
-          fileName,
-          'for diagnostic:',
-          diag.loc?.file
-        );
       }
     }
 
     if (!sourceCode || !fileName) {
-      console.log('[expandDuplicateDeps] No source code found for:', diag.loc?.file);
+      expanded.push(diag);
+      continue;
+    }
+
+    // Parse the diagnostic message to extract which packages are actually duplicated
+    // Message format (analyzer): "Duplicate dependencies: chunk-name (this file A and B all import this dependency)."
+    const duplicatedPackages = new Set<string>();
+    const colonIndex = diag.message.indexOf(':');
+    if (colonIndex !== -1) {
+      const afterColon = diag.message.slice(colonIndex + 1).trim();
+      const listSection = afterColon.includes('(')
+        ? afterColon.slice(0, afterColon.indexOf('(')).trim()
+        : (afterColon.split('.')[0]?.trim() ?? '');
+
+      if (listSection) {
+        listSection.split(',').forEach((token) => {
+          const cleaned = token.trim();
+          if (cleaned) {
+            duplicatedPackages.add(cleaned);
+          }
+        });
+      }
+    }
+
+    if (duplicatedPackages.size === 0) {
       expanded.push(diag);
       continue;
     }
@@ -80,32 +102,20 @@ function expandDuplicateDependenciesDiagnostics(
 
     const imports = sourceFile.statements.filter((stmt) => ts.isImportDeclaration(stmt));
 
-    console.log('[expandDuplicateDeps] Found', imports.length, 'imports in', fileName);
-
-    // Create one diagnostic per import
+    // Create one diagnostic per DUPLICATED import (not all imports)
     for (const importStmt of imports) {
       if (ts.isImportDeclaration(importStmt)) {
         const moduleSpecifier = importStmt.moduleSpecifier;
         if (ts.isStringLiteral(moduleSpecifier)) {
           const packageName = moduleSpecifier.text;
-          const startPos = sourceFile.getLineAndCharacterOfPosition(
-            moduleSpecifier.getStart(sourceFile)
-          );
 
-          console.log(
-            '[expandDuplicateDeps] Creating diagnostic for',
-            packageName,
-            'at line',
-            startPos.line + 1,
-            'col',
-            startPos.character + 1,
-            'in',
-            matchedFile
-          );
+          // Only create diagnostic if this package is mentioned in the original diagnostic message
+          if (!duplicatedPackages.has(packageName)) {
+            continue;
+          }
 
           expanded.push({
             ...diag,
-            message: `'${packageName}' is duplicated across multiple components. Consider extracting to a shared module.`,
             loc: {
               file: matchedFile || fileName, // Use the matched file path to preserve original path format
               range: {
@@ -119,12 +129,6 @@ function expandDuplicateDependenciesDiagnostics(
     }
   }
 
-  console.log(
-    '[expandDuplicateDeps] Expanded',
-    diagnostics.length,
-    'diagnostics to',
-    expanded.length
-  );
   return expanded;
 }
 
@@ -148,6 +152,13 @@ function fixContextFileDiagnostics(
     );
 
     if (!contextFile || !diag.loc) return diag;
+
+    const hasMeaningfulRange =
+      diag.loc.range !== undefined && diag.loc.range.from < diag.loc.range.to;
+
+    if (hasMeaningfulRange) {
+      return diag;
+    }
 
     // Parse the context file's code and find the first import
     const sourceFile = ts.createSourceFile(
@@ -231,9 +242,312 @@ function parseRouteConfigFromCode(code: string): Record<string, string | number 
   return config;
 }
 
+const CACHE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  Pragma: 'no-cache',
+  Expires: '0',
+};
+
+const ROUTE_SEGMENT_FILE_NAMES = new Set([
+  'page.tsx',
+  'layout.tsx',
+  'default.tsx',
+  'template.tsx',
+  'error.tsx',
+  'loading.tsx',
+  'route.ts',
+]);
+
+function isRouteSegmentFile(fileName: string): boolean {
+  if (ROUTE_SEGMENT_FILE_NAMES.has(fileName)) {
+    return true;
+  }
+
+  for (const segment of ROUTE_SEGMENT_FILE_NAMES) {
+    if (fileName.endsWith(`/${segment}`)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function sanitizeContextForTarget(
+  context: LspAnalysisRequest['context'] | undefined,
+  fileName: string
+): LspAnalysisRequest['context'] | undefined {
+  if (!context) {
+    return undefined;
+  }
+
+  if (!('routeConfig' in context) || context.routeConfig === undefined) {
+    return { ...context };
+  }
+
+  if (isRouteSegmentFile(fileName)) {
+    return { ...context };
+  }
+
+  const { routeConfig, ...rest } = context;
+  void routeConfig;
+  return Object.keys(rest).length > 0 ? (rest as LspAnalysisRequest['context']) : undefined;
+}
+
+interface AnalysisTargetPayload {
+  fileKey?: string;
+  fileName: string;
+  code: string;
+  context?: LspAnalysisRequest['context'];
+}
+
+interface AnalyzedTargetResult {
+  key: string;
+  diagnostics: Array<Diagnostic | Suggestion>;
+  duration: number;
+  rulesExecuted: string[];
+  version: string;
+}
+
+type ContextWithClientBundles = LspAnalysisRequest['context'] & {
+  clientBundles: Array<{ filePath: string; chunks: string[] }>;
+};
+
+function hasClientBundles(
+  context: LspAnalysisRequest['context'] | undefined
+): context is ContextWithClientBundles {
+  return Boolean(context && Array.isArray(context.clientBundles));
+}
+
+function buildTargetContext(
+  target: AnalysisTargetPayload,
+  sharedContext?: LspAnalysisRequest['context']
+): LspAnalysisRequest['context'] | undefined {
+  if (!sharedContext && !target.context) {
+    return undefined;
+  }
+
+  return {
+    ...(sharedContext ?? {}),
+    ...(target.context ?? {}),
+  };
+}
+
+function createAnalysisRequest(
+  target: AnalysisTargetPayload,
+  scenarioId: string | undefined,
+  sharedContext?: LspAnalysisRequest['context']
+): LspAnalysisRequest {
+  const context = sanitizeContextForTarget(
+    buildTargetContext(target, sharedContext),
+    target.fileName
+  );
+
+  const request: LspAnalysisRequest = {
+    code: target.code,
+    fileName: target.fileName,
+    ...(context ? { context } : {}),
+  };
+
+  if (scenarioId === 'route-config' && request.context?.routeConfig) {
+    request.context = {
+      ...request.context,
+      routeConfig: parseRouteConfigFromCode(target.code),
+    };
+  }
+
+  return request;
+}
+
+async function analyzeTargetPayload(
+  target: AnalysisTargetPayload,
+  scenarioId: string | undefined,
+  sharedContext?: LspAnalysisRequest['context']
+): Promise<AnalyzedTargetResult> {
+  const analysisRequest = createAnalysisRequest(target, scenarioId, sharedContext);
+
+  const result = await analyze(analysisRequest);
+
+  let diagnostics = result.diagnostics;
+  if (scenarioId) {
+    diagnostics = expandDuplicateDependenciesDiagnostics(diagnostics, scenarioId);
+    if (scenarioId !== 'duplicate-dependencies') {
+      diagnostics = fixContextFileDiagnostics(diagnostics, scenarioId);
+    }
+  }
+
+  return {
+    key: target.fileKey ?? target.fileName,
+    diagnostics,
+    duration: result.duration ?? 0,
+    rulesExecuted: result.rulesExecuted ?? [],
+    version: result.version ?? '0.6.0',
+  };
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const body: LspAnalysisRequest = await request.json();
+    const body = (await request.json()) as {
+      code?: string;
+      fileName?: string;
+      fileKey?: string;
+      context?: LspAnalysisRequest['context'];
+      scenario?: string;
+      analysisTargets?: AnalysisTargetPayload[];
+    };
+
+    const scenarioId = typeof body.scenario === 'string' ? body.scenario : undefined;
+    const debugLog = scenarioId === 'real-world-app' ? console.log.bind(console) : () => undefined;
+
+    debugLog('[analyze API] Request received', {
+      scenario: body.scenario,
+      fileName: body.fileName,
+      targets: Array.isArray(body.analysisTargets) ? body.analysisTargets.length : 0,
+    });
+
+    if (Array.isArray(body.analysisTargets) && body.analysisTargets.length > 0) {
+      const sharedContext = body.context;
+      const invalidTarget = body.analysisTargets.find(
+        (target) =>
+          !target || typeof target.code !== 'string' || typeof target.fileName !== 'string'
+      );
+
+      if (invalidTarget) {
+        return NextResponse.json(
+          {
+            error: {
+              code: 'INVALID_REQUEST',
+              message: 'Each analysis target must include code and fileName',
+            },
+          },
+          { status: 400 }
+        );
+      }
+
+      debugLog(
+        '[analysis-targets]',
+        body.analysisTargets.map((target) => ({
+          fileKey: target.fileKey,
+          fileName: target.fileName,
+          hasBundles: hasClientBundles(target.context),
+        }))
+      );
+
+      const analyses = await Promise.all(
+        body.analysisTargets.map((target) =>
+          analyzeTargetPayload(target, scenarioId, sharedContext)
+        )
+      );
+
+      debugLog('[analyze API] Multi-target analysis complete', {
+        scenario: scenarioId,
+        files: analyses.map((entry) => ({ key: entry.key, duration: entry.duration })),
+      });
+
+      const diagnosticsByFile: Record<string, Array<Diagnostic | Suggestion>> = {};
+      const durationsByFile: Record<string, number> = {};
+      const diagnosticKeysByFile = new Map<string, Set<string>>();
+      const durationContributorsByFile = new Map<string, Set<string>>();
+      const rulesExecutedSet = new Set<string>();
+      let totalDuration = 0;
+      let version = analyses[0]?.version ?? '0.6.0';
+
+      const getDiagnosticKey = (diag: Diagnostic | Suggestion): string => {
+        const rule = 'rule' in diag ? diag.rule : 'suggestion';
+        const message = diag.message ?? '';
+        const locFile = diag.loc?.file ?? '';
+        const range = diag.loc?.range;
+        const rangeKey = range ? `${range.from}:${range.to}` : '';
+        return `${rule}|${message}|${locFile}|${rangeKey}`;
+      };
+
+      const addDurationForFile = (fileKey: string, duration: number, contributorId: string) => {
+        const contributors = durationContributorsByFile.get(fileKey) ?? new Set<string>();
+        if (!contributors.has(contributorId)) {
+          durationsByFile[fileKey] = (durationsByFile[fileKey] ?? 0) + duration;
+          contributors.add(contributorId);
+          durationContributorsByFile.set(fileKey, contributors);
+        }
+      };
+
+      const assignDiagnostic = (
+        key: string,
+        diag: Diagnostic | Suggestion,
+        duration: number,
+        contributorId: string
+      ) => {
+        const diagKey = getDiagnosticKey(diag);
+        const existingKeys = diagnosticKeysByFile.get(key) ?? new Set<string>();
+
+        if (existingKeys.has(diagKey)) {
+          addDurationForFile(key, duration, contributorId);
+          return;
+        }
+
+        existingKeys.add(diagKey);
+        diagnosticKeysByFile.set(key, existingKeys);
+
+        if (!diagnosticsByFile[key]) {
+          diagnosticsByFile[key] = [];
+        }
+
+        diagnosticsByFile[key].push(diag);
+        addDurationForFile(key, duration, contributorId);
+      };
+
+      analyses.forEach((entry) => {
+        const duration = entry.duration;
+        totalDuration += duration;
+        version = entry.version || version;
+        entry.rulesExecuted.forEach((rule) => rulesExecutedSet.add(rule));
+
+        if (entry.diagnostics.length === 0) {
+          if (!diagnosticsByFile[entry.key]) {
+            diagnosticsByFile[entry.key] = [];
+          }
+          addDurationForFile(entry.key, duration, entry.key);
+          return;
+        }
+
+        entry.diagnostics.forEach((diag) => {
+          const locFile = diag.loc?.file;
+          if (locFile) {
+            const normalizedLoc = locFile.replace(/^\.\//, '');
+            const normalizedKey = entry.key.replace(/^\.\//, '');
+
+            if (
+              normalizedLoc === normalizedKey ||
+              normalizedLoc.endsWith(`/${normalizedKey}`) ||
+              normalizedKey.endsWith(`/${normalizedLoc}`)
+            ) {
+              assignDiagnostic(entry.key, diag, duration, entry.key);
+              return;
+            }
+
+            const fileName = normalizedLoc.split('/').pop();
+            if (fileName) {
+              assignDiagnostic(fileName, diag, duration, entry.key);
+              return;
+            }
+          }
+
+          assignDiagnostic(entry.key, diag, duration, entry.key);
+        });
+      });
+
+      const flattenedDiagnostics = Object.values(diagnosticsByFile).flat();
+
+      return NextResponse.json(
+        {
+          diagnostics: flattenedDiagnostics,
+          diagnosticsByFile,
+          durationsByFile,
+          duration: totalDuration,
+          rulesExecuted: Array.from(rulesExecutedSet),
+          version,
+        },
+        { headers: CACHE_HEADERS }
+      );
+    }
 
     if (!body.code || !body.fileName) {
       return NextResponse.json(
@@ -242,54 +556,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // For route-config scenario, parse route config from actual code instead of using hardcoded context
-    // This allows users to edit the code and see diagnostics update correctly
-    let analysisBody = body;
-    if (body.scenario === 'route-config' && body.context?.routeConfig) {
-      const parsedConfig = parseRouteConfigFromCode(body.code);
-      analysisBody = {
-        ...body,
-        context: {
-          ...body.context,
-          routeConfig: parsedConfig,
-        },
-      };
-    }
-
-    // 🎯 IMPORTANT: Don't pass scenario parameter to analyzer!
-    // The 'scenario' field in LspAnalysisRequest acts as a FILTER - it only runs that scenario's rules.
-    // For the demo, we want to run ALL applicable OSS rules so users can play and experiment.
-    // We'll use body.scenario only for demo-specific logic (context, expansions, etc.)
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { scenario, ...analysisRequest } = analysisBody;
-
-    // For duplicate-dependencies scenario, we pass 3 bundles to detect duplication
-    // The analyzer will return 3 diagnostics (one per file), which will be shown in their respective tabs
-    const result = await analyze(analysisRequest);
-
-    // Expand duplicate-dependencies diagnostics to show one per import (instead of one per file)
-    // This also handles positioning for context files, so we don't need fixContextFileDiagnostics
-    if (body.scenario) {
-      result.diagnostics = expandDuplicateDependenciesDiagnostics(
-        result.diagnostics,
-        body.scenario
-      );
-    }
-
-    // Fix diagnostic positions for OTHER scenarios' context files (not duplicate-dependencies)
-    // duplicate-dependencies is already handled by expandDuplicateDependenciesDiagnostics above
-    if (body.scenario && body.scenario !== ('duplicate-dependencies' as typeof body.scenario)) {
-      result.diagnostics = fixContextFileDiagnostics(result.diagnostics, body.scenario);
-    }
-
-    // Add cache control headers to prevent any caching
-    return NextResponse.json(result, {
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        Pragma: 'no-cache',
-        Expires: '0',
+    const analyzedTarget = await analyzeTargetPayload(
+      {
+        fileKey: body.fileKey ?? body.fileName,
+        fileName: body.fileName,
+        code: body.code,
+        context: body.context,
       },
+      scenarioId
+    );
+
+    debugLog('[analyze API] Single-target analysis complete', {
+      scenario: scenarioId,
+      fileKey: analyzedTarget.key,
+      duration: analyzedTarget.duration,
+      diagnostics: analyzedTarget.diagnostics.length,
     });
+
+    return NextResponse.json(
+      {
+        diagnostics: analyzedTarget.diagnostics,
+        diagnosticsByFile: { [analyzedTarget.key]: analyzedTarget.diagnostics },
+        duration: analyzedTarget.duration,
+        durationsByFile: { [analyzedTarget.key]: analyzedTarget.duration },
+        rulesExecuted: analyzedTarget.rulesExecuted,
+        version: analyzedTarget.version,
+      },
+      { headers: CACHE_HEADERS }
+    );
   } catch (error) {
     console.error('Analysis API error:', error);
 

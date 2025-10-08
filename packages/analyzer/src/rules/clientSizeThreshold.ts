@@ -13,6 +13,8 @@ export interface SizeThresholdConfig {
   thresholdBytes?: number;
   /** Optional source file for accurate diagnostic positioning */
   sourceFile?: ts.SourceFile;
+  /** Current route being analyzed (for route-specific duplicate messages) */
+  route?: string;
 }
 
 interface ChunkUsage {
@@ -39,7 +41,12 @@ function toDiagnostic(
     const normalizedSourcePath = sourceFile.fileName.replace(/^\.\//, '');
     const normalizedFilePath = filePath.replace(/^\.\//, '');
 
-    if (normalizedSourcePath === normalizedFilePath) {
+    const isSameFile =
+      normalizedSourcePath === normalizedFilePath ||
+      normalizedFilePath.endsWith(`/${normalizedSourcePath}`) ||
+      normalizedSourcePath.endsWith(`/${normalizedFilePath}`);
+
+    if (isSameFile) {
       // Find the first import declaration and its module specifier (package name)
       const firstImport = sourceFile.statements.find(
         (stmt) =>
@@ -146,22 +153,57 @@ export function detectClientSizeIssues(
     componentPairsDuplicates.set(pairKey, chunks);
   }
 
-  // Report duplicate dependencies
+  // Report duplicate dependencies with route-aware messages
+  const { route } = config;
+
   for (const [pairKey, chunks] of componentPairsDuplicates.entries()) {
     const components = pairKey.split('|');
-    if (chunks.size >= 3) {
-      // Only report when multiple chunks are duplicated
-      for (const component of components) {
-        diagnostics.push(
-          toDiagnostic(
-            component,
-            DUPLICATE_DEPS_RULE,
-            `Component shares ${chunks.size} dependencies with ${components.length - 1} other component(s). Consider extracting shared code to a common module or using dynamic imports.`,
-            'warn',
-            sourceFile
-          )
-        );
+
+    // Only report if multiple distinct components share chunks (prevent self-referencing)
+    if (components.length < 2 || chunks.size < 1) {
+      continue;
+    }
+
+    const normalizeComponentName = (value: string): string => {
+      const segment = value.split('/').pop() ?? value;
+      return segment.replace(/\.(tsx?|jsx?)$/i, '');
+    };
+
+    const formatNameList = (names: string[]): string => {
+      if (names.length <= 1) {
+        return names[0] ?? '';
       }
+      if (names.length === 2) {
+        return `${names[0]} and ${names[1]}`;
+      }
+      return `${names.slice(0, -1).join(', ')}, and ${names.at(-1) ?? ''}`;
+    };
+
+    for (const component of components) {
+      const normalizedCurrent = normalizeComponentName(component);
+
+      const normalizedAllComponents = Array.from(new Set(components.map(normalizeComponentName)));
+
+      const normalizedOtherComponents = normalizedAllComponents.filter(
+        (name) => name !== normalizedCurrent
+      );
+
+      // Skip if no other components remain after normalization (safety check)
+      if (normalizedOtherComponents.length === 0) {
+        continue;
+      }
+
+      // Build route-aware message
+      const routeContext = route ? ` in route '${route}'` : '';
+      const chunksList = Array.from(chunks).join(', ');
+      const participants = formatNameList([normalizedCurrent, ...normalizedOtherComponents]);
+
+      const message =
+        `Duplicate dependencies${routeContext}: ${chunksList} ` +
+        `(this file ${participants} all import this dependency). ` +
+        `Consider extracting shared code to a common module or using dynamic imports.`;
+
+      diagnostics.push(toDiagnostic(component, DUPLICATE_DEPS_RULE, message, 'warn', sourceFile));
     }
   }
 

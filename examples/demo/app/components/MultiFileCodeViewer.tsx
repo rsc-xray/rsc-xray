@@ -1,11 +1,73 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { EditorView, basicSetup } from 'codemirror';
 import { javascript } from '@codemirror/lang-javascript';
-import { linter, type Diagnostic as CMDiagnostic } from '@codemirror/lint';
+import { setDiagnostics, lintGutter, type Diagnostic as CMDiagnostic } from '@codemirror/lint';
 import type { Diagnostic, Suggestion } from '@rsc-xray/schemas';
 import styles from './MultiFileCodeViewer.module.css';
+
+function extractRouteSegmentFromCode(code?: string): string | null {
+  if (!code) return null;
+  const match = code.match(/\/\/\s*app\/([A-Za-z0-9/_-]+)\/page\.tsx/);
+  return match ? match[1] : null;
+}
+
+function formatRouteLabel(segment: string | null, fallback: string): string {
+  if (!segment) return fallback;
+  return segment.startsWith('/') ? segment : `/${segment}`;
+}
+
+function annotateDuplicateDiagnostics(
+  diagnostics: Array<Diagnostic | Suggestion>
+): Array<Diagnostic | Suggestion> {
+  return diagnostics;
+}
+
+type DiagnosticsByFile = Record<string, Array<Diagnostic | Suggestion>>;
+
+function normalizeDiagnosticsForFile(
+  diags: Array<Diagnostic | Suggestion>,
+  fileKey: string
+): Array<Diagnostic | Suggestion> {
+  return diags.map((diag) => {
+    if (!diag.loc || diag.loc.file === fileKey) {
+      return diag;
+    }
+
+    return {
+      ...diag,
+      loc: {
+        ...diag.loc,
+        file: fileKey,
+      },
+    };
+  });
+}
+
+function setDiagnosticsForFile(
+  store: DiagnosticsByFile,
+  fileKey: string,
+  diags: Array<Diagnostic | Suggestion>,
+  log?: (stage: string, payload: Record<string, unknown>) => void
+): void {
+  const filtered = diags.filter((diag) => {
+    const locFile = diag.loc?.file;
+    if (!locFile) return true;
+    if (locFile === fileKey) return true;
+    if (locFile.endsWith(`/${fileKey}`)) return true;
+    return false;
+  });
+
+  log?.('set-diagnostics-for-file', {
+    fileKey,
+    originalCount: diags.length,
+    filteredCount: filtered.length,
+    sample: filtered[0]?.loc?.file ?? diags[0]?.loc?.file ?? null,
+  });
+
+  store[fileKey] = normalizeDiagnosticsForFile(filtered, fileKey);
+}
 
 /**
  * A single code file with optional diagnostics
@@ -13,6 +75,8 @@ import styles from './MultiFileCodeViewer.module.css';
 export interface CodeFile {
   /** File name (displayed in tab) */
   fileName: string;
+  /** Optional display name for tab labels */
+  displayName?: string;
   /** File content (code) */
   code: string;
   /** Optional description shown above the editor */
@@ -26,29 +90,47 @@ export interface CodeFile {
 interface MultiFileCodeViewerConfig {
   /** Array of files to display in tabs */
   files: CodeFile[];
-  /** Optional diagnostics to overlay on the code */
-  diagnostics?: Array<Diagnostic | Suggestion>;
   /** Initial active file (defaults to first file) */
   initialFile?: string;
+  /** Precomputed diagnostics to display (optional) */
+  diagnostics?: Array<Diagnostic | Suggestion>;
+  /** Enable live re-analysis when code changes (defaults to true if scenario provided) */
+  enableRealTimeAnalysis?: boolean;
+  /** Optional custom analyzer callback used when live analysis is enabled */
+  onAnalyze?: (fileName: string, code: string) => Promise<Array<Diagnostic | Suggestion>>;
+  /** Debounce interval (ms) between edits and re-analysis, defaults to 500ms */
+  analysisDebounceMs?: number;
   /** Callback when active file changes */
   onFileChange?: (fileName: string) => void;
   /** Callback when editable file content changes */
   onCodeChange?: (fileName: string, code: string) => void;
-  /** Scenario object for analysis context (enables real-time analysis for editable files) */
+  /** Scenario object for analysis context (required for analysis) */
   scenario?: {
     id: string;
+    fileName?: string;
+    code: string;
     context?: Record<string, unknown>;
+    contextFiles?: Array<{
+      fileName: string;
+      code: string;
+      description?: string;
+    }>;
+    additionalRoutes?: Array<{
+      route: string;
+      fileName: string;
+      code: string;
+      context?: Record<string, unknown>;
+      contextFiles?: Array<{
+        fileName: string;
+        code: string;
+        description?: string;
+      }>;
+    }>;
   };
   /** Callback when analysis completes */
   onAnalysisComplete?: (diagnostics: Array<Diagnostic | Suggestion>, duration: number) => void;
   /** Callback when analysis starts */
   onAnalysisStart?: () => void;
-  /** Enable real-time analysis for editable files (triggers onAnalyze callback) - DEPRECATED, use scenario prop */
-  enableRealTimeAnalysis?: boolean;
-  /** Callback to perform analysis (return diagnostics for all files) - DEPRECATED, use scenario prop */
-  onAnalyze?: (fileName: string, code: string) => Promise<Array<Diagnostic | Suggestion>>;
-  /** Debounce delay for real-time analysis in ms (default: 300) */
-  analysisDebounceMs?: number;
 }
 
 /**
@@ -75,16 +157,16 @@ interface MultiFileCodeViewerConfig {
  */
 export function MultiFileCodeViewer({
   files,
-  diagnostics = [],
   initialFile,
+  diagnostics,
+  enableRealTimeAnalysis = false,
+  onAnalyze,
+  analysisDebounceMs = 500,
   onFileChange,
   onCodeChange,
   scenario,
   onAnalysisComplete,
   onAnalysisStart,
-  enableRealTimeAnalysis = false,
-  onAnalyze,
-  analysisDebounceMs = 300,
 }: MultiFileCodeViewerConfig) {
   const [activeFileName, setActiveFileName] = useState<string>(
     initialFile || files[0]?.fileName || ''
@@ -93,72 +175,463 @@ export function MultiFileCodeViewer({
   const viewRef = useRef<EditorView | null>(null);
   const [isReady, setIsReady] = useState(false);
   const scenarioRef = useRef(scenario);
+  const logRealWorldDiagnostics = useCallback((stage: string, payload: Record<string, unknown>) => {
+    const currentScenario = scenarioRef.current;
+    if (currentScenario?.id !== 'real-world-app') {
+      return;
+    }
+
+    console.log('[RealWorldDiagnostics]', stage, {
+      scenarioId: currentScenario.id,
+      ...payload,
+    });
+  }, []);
+  const mainRouteSegment = useMemo(
+    () => (scenario ? extractRouteSegmentFromCode(scenario.code) : null),
+    [scenario?.id, scenario?.code]
+  );
+  const mainRouteLabel = useMemo(() => formatRouteLabel(mainRouteSegment, ''), [mainRouteSegment]);
+  const mainRouteLabelRef = useRef(mainRouteLabel);
+  useEffect(() => {
+    mainRouteLabelRef.current = mainRouteLabel;
+  }, [mainRouteLabel]);
+  const [diagnosticsByFile, setDiagnosticsByFile] = useState<DiagnosticsByFile>({});
+  const diagnosticsRef = useRef<DiagnosticsByFile>({});
+  const reAnalyzeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Keep scenario ref up to date
   useEffect(() => {
     scenarioRef.current = scenario;
   }, [scenario]);
 
+  useEffect(() => {
+    return () => {
+      if (reAnalyzeTimeoutRef.current) {
+        clearTimeout(reAnalyzeTimeoutRef.current);
+        reAnalyzeTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    diagnosticsRef.current = diagnosticsByFile;
+  }, [diagnosticsByFile]);
+
   const activeFile = files.find((f) => f.fileName === activeFileName);
 
-  // Suppress unused variable warnings for deprecated props
-  // These are kept for backwards compatibility but not used in scenario mode
-  void enableRealTimeAnalysis;
-  void onAnalyze;
-  void analysisDebounceMs;
+  const applyDiagnosticsToView = useCallback(
+    (view: EditorView | null, fileName: string, diagnosticsByFile: DiagnosticsByFile) => {
+      if (!view) return;
+      const currentDiags = diagnosticsByFile[fileName] ?? [];
+      logRealWorldDiagnostics('rendering-diagnostics', {
+        fileName,
+        diagnosticCount: currentDiags.length,
+        availableFiles: Object.keys(diagnosticsByFile),
+        diagnosticsPreview: currentDiags.slice(0, 3),
+      });
+      const doc = view.state.doc;
 
-  // Convert RSC X-Ray diagnostics to CodeMirror diagnostics for the active file
-  const convertDiagnostics = (
-    diags: Array<Diagnostic | Suggestion>,
-    fileName: string
-  ): CMDiagnostic[] => {
-    const filtered = diags.filter((d) => {
-      if (!d.loc?.file) return false;
+      const cmDiagnostics = currentDiags
+        .filter((diag) => {
+          const range = diag.loc?.range;
+          return !range || range.from !== range.to;
+        })
+        .map((diag) => {
+          const range = diag.loc?.range;
+          let from = 0;
+          let to = doc.length;
 
-      // Match exact file name or if loc.file contains this file name
-      return (
-        d.loc.file === fileName ||
-        d.loc.file.endsWith(`/${fileName}`) ||
-        d.loc.file.includes(fileName)
-      );
-    });
+          if (range) {
+            from = Math.max(0, Math.min(range.from, doc.length));
+            to = Math.max(from + 1, Math.min(range.to, doc.length));
+          }
 
-    if (!viewRef.current) return [];
+          const severity =
+            diag.level === 'error' ? 'error' : diag.level === 'warn' ? 'warning' : 'info';
 
-    return filtered.map((diag) => {
-      try {
-        // Use the precise range from the analyzer if available
-        if (diag.loc?.range) {
           return {
-            from: diag.loc.range.from,
-            to: diag.loc.range.to,
-            severity: diag.level === 'error' ? 'error' : 'warning',
+            from,
+            to,
+            severity,
             message: diag.message,
             source: diag.rule,
           } as CMDiagnostic;
+        });
+
+      logRealWorldDiagnostics('cm-diagnostics-ready', {
+        fileName,
+        cmDiagnostics: cmDiagnostics.slice(0, 3),
+      });
+
+      view.dispatch(setDiagnostics(view.state, cmDiagnostics));
+    },
+    []
+  );
+
+  const applyDiagnosticsToViewRef = useRef(applyDiagnosticsToView);
+  useEffect(() => {
+    applyDiagnosticsToViewRef.current = applyDiagnosticsToView;
+  }, [applyDiagnosticsToView]);
+
+  const lintExtension = useMemo(() => lintGutter(), []);
+
+  useEffect(() => {
+    if (!diagnostics || diagnostics.length === 0) return;
+    const mainFile = files[0];
+    if (!mainFile) return;
+
+    const annotated = annotateDuplicateDiagnostics(diagnostics);
+    setDiagnosticsByFile((prev) => {
+      const next = { ...prev };
+      setDiagnosticsForFile(next, mainFile.fileName, annotated, logRealWorldDiagnostics);
+      logRealWorldDiagnostics('prop-diagnostics-applied', {
+        fileKey: mainFile.fileName,
+        diagnostics: next[mainFile.fileName] ?? [],
+        source: 'prop-update',
+      });
+      return next;
+    });
+  }, [diagnostics, files, logRealWorldDiagnostics]);
+
+  // Re-analyze function (debounced)
+  const triggerReAnalysis = useCallback(
+    (code: string, fileName: string) => {
+      if (!enableRealTimeAnalysis && !scenarioRef.current && !onAnalyze) {
+        return;
+      }
+
+      if (reAnalyzeTimeoutRef.current) {
+        clearTimeout(reAnalyzeTimeoutRef.current);
+      }
+
+      reAnalyzeTimeoutRef.current = setTimeout(async () => {
+        if (onAnalysisStart) onAnalysisStart();
+
+        try {
+          const start = performance.now();
+          let nextDiagnostics: Array<Diagnostic | Suggestion> = [];
+          let duration = 0;
+
+          if (onAnalyze) {
+            nextDiagnostics = await onAnalyze(fileName, code);
+          } else {
+            const currentScenario = scenarioRef.current;
+            if (!currentScenario) return;
+
+            const response = await fetch('/api/analyze', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache',
+              },
+              body: JSON.stringify({
+                code,
+                fileName,
+                scenario: currentScenario.id,
+                context: currentScenario.context,
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error(`Analysis failed: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            const serverDiagnostics =
+              (result.diagnosticsByFile?.[fileName] as
+                | Array<Diagnostic | Suggestion>
+                | undefined) ??
+              (result.diagnostics as Array<Diagnostic | Suggestion> | undefined) ??
+              [];
+
+            logRealWorldDiagnostics('reanalysis-server-response', {
+              fileKey: fileName,
+              diagnostics: serverDiagnostics,
+              diagnosticsByFileKeys: Object.keys(
+                (result.diagnosticsByFile as DiagnosticsByFile) ?? {}
+              ),
+            });
+
+            duration = result.duration ?? Math.round(performance.now() - start);
+            nextDiagnostics = serverDiagnostics;
+          }
+
+          const annotated = annotateDuplicateDiagnostics(nextDiagnostics);
+
+          setDiagnosticsByFile((prev) => {
+            const next = { ...prev } as DiagnosticsByFile;
+            setDiagnosticsForFile(next, fileName, annotated, logRealWorldDiagnostics);
+            logRealWorldDiagnostics('tab-diagnostics-updated', {
+              fileKey: fileName,
+              diagnostics: next[fileName] ?? [],
+              source: 'reanalysis',
+            });
+            diagnosticsRef.current = next;
+            return next;
+          });
+
+          if (onAnalysisComplete) {
+            onAnalysisComplete(annotated, duration || Math.round(performance.now() - start));
+          }
+        } catch (error) {
+          console.error('[MultiFileCodeViewer] Re-analysis error:', error);
+        }
+      }, analysisDebounceMs);
+    },
+    [
+      enableRealTimeAnalysis,
+      onAnalyze,
+      analysisDebounceMs,
+      onAnalysisStart,
+      onAnalysisComplete,
+      logRealWorldDiagnostics,
+    ]
+  );
+
+  const triggerReAnalysisRef = useRef(triggerReAnalysis);
+  useEffect(() => {
+    triggerReAnalysisRef.current = triggerReAnalysis;
+  }, [triggerReAnalysis]);
+
+  // Run analysis on mount or when scenario changes
+  useEffect(() => {
+    diagnosticsRef.current = {};
+    setDiagnosticsByFile({});
+
+    if (!scenario) {
+      return;
+    }
+
+    const currentScenario = scenario;
+    const runAnalysis = async () => {
+      if (onAnalysisStart) onAnalysisStart();
+
+      try {
+        const mainFile = files[0];
+        if (!mainFile) {
+          diagnosticsRef.current = {};
+          setDiagnosticsByFile({});
+          return;
         }
 
-        // Fallback: shouldn't happen with new schema, but kept for safety
-        return {
-          from: 0,
-          to: 10,
-          severity: diag.level === 'error' ? 'error' : 'warning',
-          message: diag.message,
-          source: diag.rule,
-        } as CMDiagnostic;
-      } catch (e) {
-        console.error('[MultiFileCodeViewer] Error converting diagnostic:', e);
-        return {
-          from: 0,
-          to: 10,
-          severity: diag.level === 'error' ? 'error' : 'warning',
-          message: diag.message,
-          source: diag.rule,
-        } as CMDiagnostic;
-      }
-    });
-  };
+        const mainRouteLabelForTargets =
+          mainRouteLabel && mainRouteLabel.length > 0 ? mainRouteLabel : null;
+        const seenFileKeys = new Set<string>();
+        const routeLabels = new Map<string, string | null>();
+        const analysisTargets: Array<{
+          fileKey: string;
+          fileName: string;
+          code: string;
+          context?: Record<string, unknown>;
+        }> = [];
 
+        const pushTarget = (target: {
+          fileKey: string;
+          fileName: string;
+          code: string;
+          context?: Record<string, unknown>;
+          routeLabel: string | null;
+        }) => {
+          if (seenFileKeys.has(target.fileKey)) {
+            return;
+          }
+
+          seenFileKeys.add(target.fileKey);
+          const mergedTargetContext = target.context ? { ...target.context } : {};
+          if (target.routeLabel) {
+            mergedTargetContext.route = target.routeLabel;
+          }
+          analysisTargets.push({
+            fileKey: target.fileKey,
+            fileName: target.fileKey,
+            code: target.code,
+            context: Object.keys(mergedTargetContext).length > 0 ? mergedTargetContext : undefined,
+          });
+          routeLabels.set(target.fileKey, target.routeLabel);
+        };
+
+        pushTarget({
+          fileKey: mainFile.fileName,
+          fileName: mainFile.fileName,
+          code: mainFile.code,
+          context: currentScenario.context,
+          routeLabel: mainRouteLabelForTargets,
+        });
+
+        const registerContextFile = (
+          file: { fileName: string; code: string },
+          routeLabel: string | null,
+          mergedContext: Record<string, unknown> | undefined
+        ) => {
+          pushTarget({
+            fileKey: file.fileName,
+            fileName: file.fileName,
+            code: file.code,
+            context: mergedContext,
+            routeLabel,
+          });
+        };
+
+        (currentScenario.contextFiles || []).forEach((file) =>
+          registerContextFile(file, mainRouteLabelForTargets, currentScenario.context)
+        );
+
+        (currentScenario.additionalRoutes || []).forEach((route) => {
+          const routeSegment = route.route.replace(/^\//, '').replace(/\/$/, '');
+          const routeFileKey = routeSegment ? `${routeSegment}/${route.fileName}` : route.fileName;
+          const mergedContext = route.context
+            ? { ...(currentScenario.context ?? {}), ...route.context }
+            : currentScenario.context;
+          const routeLabel =
+            route.route || (routeSegment ? formatRouteLabel(routeSegment, route.fileName) : null);
+
+          pushTarget({
+            fileKey: routeFileKey,
+            fileName: route.fileName,
+            code: route.code,
+            context: mergedContext,
+            routeLabel,
+          });
+
+          (route.contextFiles || []).forEach((file) =>
+            registerContextFile(file, routeLabel, mergedContext)
+          );
+        });
+
+        files.forEach((file) => {
+          if (!seenFileKeys.has(file.fileName)) {
+            pushTarget({
+              fileKey: file.fileName,
+              fileName: file.fileName,
+              code: file.code,
+              context: currentScenario.context,
+              routeLabel: mainRouteLabelForTargets,
+            });
+          }
+        });
+
+        if (analysisTargets.length === 0) {
+          diagnosticsRef.current = {};
+          setDiagnosticsByFile({});
+          return;
+        }
+
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+          },
+          body: JSON.stringify({
+            scenario: currentScenario.id,
+            context: currentScenario.context,
+            analysisTargets: analysisTargets.map((target) => ({
+              fileKey: target.fileKey,
+              fileName: target.fileName,
+              code: target.code,
+              context: target.context,
+            })),
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Analysis failed: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        const incomingDiagnostics: DiagnosticsByFile =
+          (result.diagnosticsByFile as DiagnosticsByFile) ?? {};
+
+        const nextDiagnosticsByFile: DiagnosticsByFile = {};
+
+        for (const [fileKey, diags] of Object.entries(incomingDiagnostics)) {
+          logRealWorldDiagnostics('initial-server-diagnostics', {
+            fileKey,
+            diagnostics: diags ?? [],
+          });
+          const routeLabel = routeLabels.get(fileKey) ?? null;
+          setDiagnosticsForFile(
+            nextDiagnosticsByFile,
+            fileKey,
+            annotateDuplicateDiagnostics(diags ?? []),
+            logRealWorldDiagnostics
+          );
+          logRealWorldDiagnostics('initial-tab-diagnostics', {
+            fileKey,
+            diagnostics: nextDiagnosticsByFile[fileKey] ?? [],
+            source: 'initial-load',
+            routeLabel,
+          });
+        }
+
+        if (
+          Object.keys(incomingDiagnostics).length === 0 &&
+          Array.isArray(result.diagnostics) &&
+          result.diagnostics.length > 0
+        ) {
+          const routeLabel = routeLabels.get(mainFile.fileName) ?? null;
+          logRealWorldDiagnostics('initial-server-diagnostics-fallback', {
+            fileKey: mainFile.fileName,
+            diagnostics: result.diagnostics,
+          });
+          setDiagnosticsForFile(
+            nextDiagnosticsByFile,
+            mainFile.fileName,
+            annotateDuplicateDiagnostics(result.diagnostics),
+            logRealWorldDiagnostics
+          );
+          logRealWorldDiagnostics('initial-tab-diagnostics-fallback', {
+            fileKey: mainFile.fileName,
+            diagnostics: nextDiagnosticsByFile[mainFile.fileName] ?? [],
+            source: 'initial-load-fallback',
+            routeLabel,
+          });
+        } else {
+          logRealWorldDiagnostics('initial-server-diagnostics-keys', {
+            keys: Object.keys(incomingDiagnostics),
+            diagnosticsCount: Object.values(incomingDiagnostics).reduce(
+              (total, diags) => total + (diags?.length ?? 0),
+              0
+            ),
+          });
+        }
+
+        diagnosticsRef.current = nextDiagnosticsByFile;
+        setDiagnosticsByFile(nextDiagnosticsByFile);
+        logRealWorldDiagnostics('diagnostics-by-file-ready', {
+          diagnosticsByFile: nextDiagnosticsByFile,
+          activeFile: activeFileName,
+        });
+
+        if (viewRef.current && activeFileName) {
+          applyDiagnosticsToViewRef.current(
+            viewRef.current,
+            activeFileName,
+            diagnosticsRef.current
+          );
+        }
+
+        if (onAnalysisComplete) {
+          const flattenedDiagnostics = Object.values(nextDiagnosticsByFile).flat();
+          const durationsByFile = (result.durationsByFile ?? {}) as Record<string, number>;
+          const aggregatedDuration =
+            typeof result.duration === 'number'
+              ? result.duration
+              : Object.values(durationsByFile).reduce((sum, value) => sum + value, 0);
+
+          onAnalysisComplete(flattenedDiagnostics, aggregatedDuration);
+        }
+      } catch (error) {
+        console.error('[MultiFileCodeViewer] Analysis error:', error);
+        diagnosticsRef.current = {};
+        setDiagnosticsByFile({});
+      }
+    };
+
+    runAnalysis();
+  }, [scenario?.id, logRealWorldDiagnostics]);
+
+  // Convert RSC X-Ray diagnostics to CodeMirror diagnostics for the active file
   // Initialize or update CodeMirror editor
   useEffect(() => {
     if (!editorRef.current || !activeFile) return;
@@ -169,67 +642,21 @@ export function MultiFileCodeViewer({
       viewRef.current = null;
     }
 
-    // Create linter: async if scenario is provided and file is editable, otherwise sync
-    const linterExtension =
-      scenario && activeFile.editable
-        ? linter(async (view): Promise<CMDiagnostic[]> => {
-            const code = view.state.doc.toString();
-            const currentScenario = scenarioRef.current;
-
-            if (!currentScenario) {
-              return convertDiagnostics(diagnostics, activeFile.fileName);
-            }
-
-            console.log(`[MultiFileCodeViewer] Running analysis for "${currentScenario.id}"`);
-
-            try {
-              if (onAnalysisStart) onAnalysisStart();
-
-              const response = await fetch('/api/analyze', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Cache-Control': 'no-cache',
-                },
-                body: JSON.stringify({
-                  code,
-                  fileName: activeFile.fileName,
-                  scenario: currentScenario.id,
-                  context: currentScenario.context,
-                }),
-              });
-
-              if (!response.ok) {
-                throw new Error(`Analysis failed: ${response.statusText}`);
-              }
-
-              const result = await response.json();
-              console.log('[MultiFileCodeViewer] Analysis result:', result);
-
-              if (onAnalysisComplete) {
-                onAnalysisComplete(result.diagnostics || [], result.duration);
-              }
-
-              return convertDiagnostics(result.diagnostics || [], activeFile.fileName);
-            } catch (error) {
-              console.error('[MultiFileCodeViewer] Analysis error:', error);
-              return [];
-            }
-          })
-        : linter(() => convertDiagnostics(diagnostics, activeFile.fileName));
-
     const view = new EditorView({
       doc: activeFile.code,
       extensions: [
         basicSetup,
+        lintExtension,
         javascript({ jsx: true, typescript: activeFile.language !== 'javascript' }),
         EditorView.editable.of(activeFile.editable || false),
-        linterExtension,
         EditorView.updateListener.of((update) => {
-          if (update.docChanged && activeFile.editable && onCodeChange) {
+          if (update.docChanged && activeFile.editable) {
             const newCode = update.state.doc.toString();
-            onCodeChange(activeFile.fileName, newCode);
-            // Note: Analysis is handled by the linter extension (see linterExtension above)
+            if (onCodeChange) {
+              onCodeChange(activeFile.fileName, newCode);
+            }
+            // Trigger re-analysis after edit (debounced)
+            triggerReAnalysisRef.current(newCode, activeFile.fileName);
           }
         }),
         EditorView.theme({
@@ -266,52 +693,71 @@ export function MultiFileCodeViewer({
       viewRef.current = null;
       setIsReady(false);
     };
-  }, [activeFileName, activeFile?.code]);
+  }, [activeFileName, activeFile?.code, lintExtension, onCodeChange]);
 
-  // Update diagnostics when they change (for non-scenario mode)
+  // Update diagnostics when they change
   useEffect(() => {
-    if (!viewRef.current || !isReady || scenario) return; // Skip if scenario mode (linter handles it)
+    if (!viewRef.current || !isReady || !activeFileName) {
+      return;
+    }
 
-    import('@codemirror/lint').then(({ forceLinting }) => {
-      if (viewRef.current) {
-        forceLinting(viewRef.current);
-      }
+    logRealWorldDiagnostics('apply-diagnostics-to-view', {
+      fileName: activeFileName,
+      diagnostics: diagnosticsRef.current[activeFileName] ?? [],
     });
-  }, [diagnostics, isReady, scenario]);
+    applyDiagnosticsToViewRef.current(viewRef.current, activeFileName, diagnosticsRef.current);
+  }, [diagnosticsByFile, isReady, activeFileName, logRealWorldDiagnostics]);
 
   const handleTabChange = (fileName: string) => {
+    logRealWorldDiagnostics('active-tab-selected', {
+      fileName,
+      diagnostics: diagnosticsRef.current[fileName] ?? [],
+    });
     setActiveFileName(fileName);
     if (onFileChange) {
       onFileChange(fileName);
     }
   };
 
+  useEffect(() => {
+    if (!isReady || !viewRef.current || !activeFileName) {
+      return;
+    }
+
+    logRealWorldDiagnostics('apply-diagnostics-after-ready', {
+      fileName: activeFileName,
+      diagnostics: diagnosticsRef.current[activeFileName] ?? [],
+    });
+    applyDiagnosticsToViewRef.current(viewRef.current, activeFileName, diagnosticsRef.current);
+  }, [isReady, activeFileName, logRealWorldDiagnostics]);
+
   return (
     <div className={styles.container}>
       {/* Tab navigation */}
       <div className={styles.tabNavigation}>
-        {files.map((file) => (
-          <button
-            key={file.fileName}
-            className={`${styles.tabButton} ${
-              activeFileName === file.fileName ? styles.activeTabButton : ''
-            }`}
-            onClick={() => handleTabChange(file.fileName)}
-            title={file.description}
-          >
-            {file.fileName}
-            {file.editable && <span className={styles.editableIndicator}>✎</span>}
-          </button>
-        ))}
+        {files.map((file) => {
+          const label = file.displayName ?? file.fileName;
+
+          return (
+            <button
+              key={label}
+              className={`${styles.tabButton} ${
+                activeFileName === file.fileName ? styles.activeTabButton : ''
+              }`}
+              onClick={() => handleTabChange(file.fileName)}
+              title={file.description}
+            >
+              {label}
+              {file.editable && <span className={styles.editableIndicator}>✎</span>}
+            </button>
+          );
+        })}
       </div>
 
       {/* File description (optional) */}
       {activeFile?.description && (
         <div className={styles.description}>{activeFile.description}</div>
       )}
-
-      {/* Analyzing indicator */}
-      {enableRealTimeAnalysis && <div className={styles.analyzingIndicator}>⚡ Analyzing...</div>}
 
       {/* CodeMirror editor */}
       <div ref={editorRef} className={styles.editor} />
