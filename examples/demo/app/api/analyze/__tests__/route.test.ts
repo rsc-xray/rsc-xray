@@ -560,6 +560,78 @@ export default function Page() {
     });
   });
 
+  it('returns duplicate diagnostics for real-world dashboard components', async () => {
+    const realWorldScenario = scenarios.find((scenario) => scenario.id === 'real-world-app');
+    expect(realWorldScenario).toBeDefined();
+
+    const productChart = realWorldScenario?.contextFiles?.find(
+      (file) => file.fileName === 'ProductChart.tsx'
+    );
+    const salesMetrics = realWorldScenario?.contextFiles?.find(
+      (file) => file.fileName === 'SalesMetrics.tsx'
+    );
+    const userActivity = realWorldScenario?.contextFiles?.find(
+      (file) => file.fileName === 'UserActivity.tsx'
+    );
+
+    expect(productChart).toBeDefined();
+    expect(salesMetrics).toBeDefined();
+    expect(userActivity).toBeDefined();
+
+    const request = new NextRequest('http://localhost:3001/api/analyze', {
+      method: 'POST',
+      body: JSON.stringify({
+        scenario: 'real-world-app',
+        context: realWorldScenario?.context,
+        analysisTargets: [
+          {
+            fileKey: 'dashboard/page.tsx',
+            fileName: 'dashboard/page.tsx',
+            code: realWorldScenario?.code ?? '',
+            context: realWorldScenario?.context,
+          },
+          {
+            fileKey: 'ProductChart.tsx',
+            fileName: 'ProductChart.tsx',
+            code: productChart?.code ?? '',
+            context: realWorldScenario?.context,
+          },
+          {
+            fileKey: 'SalesMetrics.tsx',
+            fileName: 'SalesMetrics.tsx',
+            code: salesMetrics?.code ?? '',
+            context: realWorldScenario?.context,
+          },
+          {
+            fileKey: 'UserActivity.tsx',
+            fileName: 'UserActivity.tsx',
+            code: userActivity?.code ?? '',
+            context: realWorldScenario?.context,
+          },
+        ],
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(200);
+
+    const result = await response.json();
+    const diagnosticsByFile = result.diagnosticsByFile ?? {};
+
+    ['ProductChart.tsx', 'SalesMetrics.tsx', 'UserActivity.tsx'].forEach((fileKey) => {
+      const duplicates = (diagnosticsByFile[fileKey] ?? []).filter(
+        (diag: { rule?: string }) => diag?.rule === 'duplicate-dependencies'
+      );
+      expect(duplicates.length).toBeGreaterThan(0);
+      duplicates.forEach((diag: { message?: string }) => {
+        expect(diag.message).toContain('Duplicate dependencies');
+      });
+    });
+  });
+
   it('should handle analysis errors gracefully', async () => {
     const request = new NextRequest('http://localhost:3001/api/analyze', {
       method: 'POST',

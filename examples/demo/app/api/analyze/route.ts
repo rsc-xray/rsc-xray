@@ -73,16 +73,28 @@ function expandDuplicateDependenciesDiagnostics(
     }
 
     // Parse the diagnostic message to extract which packages are actually duplicated
-    // Message format: "Duplicate dependencies: chart-lib (also imported by X), date-fns (also imported by Y). Consider..."
+    // Message format (analyzer): "Duplicate dependencies: chunk-name (this file A and B all import this dependency)."
     const duplicatedPackages = new Set<string>();
-    const messageMatch = diag.message.match(/Duplicate dependencies[^:]*:\s*([^.]+)\./);
-    if (messageMatch) {
-      const packagesStr = messageMatch[1];
-      // Extract package names before " (also imported by"
-      const packageMatches = packagesStr.matchAll(/([^\s,]+)\s*\(also imported by/g);
-      for (const match of packageMatches) {
-        duplicatedPackages.add(match[1]);
+    const colonIndex = diag.message.indexOf(':');
+    if (colonIndex !== -1) {
+      const afterColon = diag.message.slice(colonIndex + 1).trim();
+      const listSection = afterColon.includes('(')
+        ? afterColon.slice(0, afterColon.indexOf('(')).trim()
+        : (afterColon.split('.')[0]?.trim() ?? '');
+
+      if (listSection) {
+        listSection.split(',').forEach((token) => {
+          const cleaned = token.trim();
+          if (cleaned) {
+            duplicatedPackages.add(cleaned);
+          }
+        });
       }
+    }
+
+    if (duplicatedPackages.size === 0) {
+      expanded.push(diag);
+      continue;
     }
 
     // Parse the source code and find all imports
