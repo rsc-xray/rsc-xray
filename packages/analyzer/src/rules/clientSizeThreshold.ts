@@ -169,23 +169,38 @@ export function detectClientSizeIssues(
       return segment.replace(/\.(tsx?|jsx?)$/i, '');
     };
 
-    for (const component of components) {
-      // Get other component names (extract filename from path for clarity)
-      const otherComponents = components.filter((c) => c !== component).map(normalizeComponentName);
+    const formatNameList = (names: string[]): string => {
+      if (names.length <= 1) {
+        return names[0] ?? '';
+      }
+      if (names.length === 2) {
+        return `${names[0]} and ${names[1]}`;
+      }
+      return `${names.slice(0, -1).join(', ')}, and ${names.at(-1) ?? ''}`;
+    };
 
-      // Skip if no other components (shouldn't happen, but safety check)
-      if (otherComponents.length === 0) {
+    for (const component of components) {
+      const normalizedCurrent = normalizeComponentName(component);
+
+      const normalizedAllComponents = Array.from(new Set(components.map(normalizeComponentName)));
+
+      const normalizedOtherComponents = normalizedAllComponents.filter(
+        (name) => name !== normalizedCurrent
+      );
+
+      // Skip if no other components remain after normalization (safety check)
+      if (normalizedOtherComponents.length === 0) {
         continue;
       }
 
       // Build route-aware message
       const routeContext = route ? ` in route '${route}'` : '';
-      const otherComponentsList = otherComponents.join(', ');
       const chunksList = Array.from(chunks).join(', ');
+      const participants = formatNameList([normalizedCurrent, ...normalizedOtherComponents]);
 
       const message =
         `Duplicate dependencies${routeContext}: ${chunksList} ` +
-        `(also imported by ${otherComponentsList}). ` +
+        `(this file ${participants} all import this dependency). ` +
         `Consider extracting shared code to a common module or using dynamic imports.`;
 
       diagnostics.push(toDiagnostic(component, DUPLICATE_DEPS_RULE, message, 'warn', sourceFile));

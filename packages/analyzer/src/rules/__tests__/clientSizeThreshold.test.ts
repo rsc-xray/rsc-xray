@@ -326,8 +326,8 @@ describe('Client Size Threshold Analyzer', () => {
       // Should include route in message
       expect(duplicates[0]?.message).toContain("in route '/dashboard'");
 
-      // Should include component names
-      expect(duplicates[0]?.message).toMatch(/also imported by \w+/);
+      // Should include component names for the current file and peers
+      expect(duplicates[0]?.message).toMatch(/this file .* all import this dependency/);
     });
 
     it('omits route context when route is not provided', () => {

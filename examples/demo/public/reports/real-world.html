@@ -149,12 +149,12 @@
     <td><span class="badge error" title="WARN: Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.
 WARN: Client component is 105.5KB (111% over 50.0KB threshold). Consider code splitting or lazy loading.
 WARN: Client component is 85.0KB (70% over 50.0KB threshold). Consider code splitting or lazy loading.
-WARN: Duplicate dependencies: chart-lib (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.
-WARN: Duplicate dependencies: chart-lib (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.
-WARN: Duplicate dependencies: date-fns (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.
-WARN: Duplicate dependencies: date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.
-WARN: Duplicate dependencies: lodash (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.
-WARN: Duplicate dependencies: lodash (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: chart-lib (this file ProductChart and SalesMetrics all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: chart-lib (this file SalesMetrics and ProductChart all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: date-fns (this file ProductChart and UserActivity all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: date-fns (this file UserActivity and ProductChart all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: lodash (this file SalesMetrics and UserActivity all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: lodash (this file UserActivity and SalesMetrics all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
 ERROR: Client components must not import 'fs'.
 WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalidate = 60'. ISR (revalidate) requires static or auto dynamic mode.">Issues 11</span></td>
   </tr><tr>
@@ -164,12 +164,12 @@ WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalid
     <td><span class="badge warn" title="WARN: Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.
 WARN: Client component is 105.5KB (111% over 50.0KB threshold). Consider code splitting or lazy loading.
 WARN: Client component is 85.0KB (70% over 50.0KB threshold). Consider code splitting or lazy loading.
-WARN: Duplicate dependencies: chart-lib (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.
-WARN: Duplicate dependencies: chart-lib (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.
-WARN: Duplicate dependencies: date-fns (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.
-WARN: Duplicate dependencies: date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.
-WARN: Duplicate dependencies: lodash (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.
-WARN: Duplicate dependencies: lodash (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: chart-lib (this file ProductChart and SalesMetrics all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: chart-lib (this file SalesMetrics and ProductChart all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: date-fns (this file ProductChart and UserActivity all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: date-fns (this file UserActivity and ProductChart all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: lodash (this file SalesMetrics and UserActivity all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: lodash (this file UserActivity and SalesMetrics all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
 WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalidate = 60'. ISR (revalidate) requires static or auto dynamic mode.">Issues 10</span></td>
   </tr><tr>
     <td>CLIENT</td>
@@ -178,12 +178,12 @@ WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalid
     <td><span class="badge warn" title="WARN: Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.
 WARN: Client component is 105.5KB (111% over 50.0KB threshold). Consider code splitting or lazy loading.
 WARN: Client component is 85.0KB (70% over 50.0KB threshold). Consider code splitting or lazy loading.
-WARN: Duplicate dependencies: chart-lib (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.
-WARN: Duplicate dependencies: chart-lib (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.
-WARN: Duplicate dependencies: date-fns (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.
-WARN: Duplicate dependencies: date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.
-WARN: Duplicate dependencies: lodash (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.
-WARN: Duplicate dependencies: lodash (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: chart-lib (this file ProductChart and SalesMetrics all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: chart-lib (this file SalesMetrics and ProductChart all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: date-fns (this file ProductChart and UserActivity all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: date-fns (this file UserActivity and ProductChart all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: lodash (this file SalesMetrics and UserActivity all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: lodash (this file UserActivity and SalesMetrics all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
 WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalidate = 60'. ISR (revalidate) requires static or auto dynamic mode.">Issues 10</span></td>
   </tr>
           </tbody>
@@ -228,37 +228,37 @@ WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalid
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/page.tsx:0-0</td>
-                    <td>Duplicate dependencies: chart-lib (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: chart-lib (this file ProductChart and SalesMetrics all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/dashboard/page.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/page.tsx:0-0</td>
-                    <td>Duplicate dependencies: chart-lib (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: chart-lib (this file SalesMetrics and ProductChart all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/dashboard/page.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/page.tsx:0-0</td>
-                    <td>Duplicate dependencies: date-fns (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: date-fns (this file ProductChart and UserActivity all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/dashboard/page.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/page.tsx:0-0</td>
-                    <td>Duplicate dependencies: date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: date-fns (this file UserActivity and ProductChart all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/dashboard/page.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/page.tsx:0-0</td>
-                    <td>Duplicate dependencies: lodash (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: lodash (this file SalesMetrics and UserActivity all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/dashboard/page.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/page.tsx:0-0</td>
-                    <td>Duplicate dependencies: lodash (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: lodash (this file UserActivity and SalesMetrics all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/dashboard/page.tsx</td>
                   </tr><tr>
                     <td>route-segment-config-conflict</td>
@@ -288,37 +288,37 @@ WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalid
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/components/ProductChart.tsx:29-33</td>
-                    <td>Duplicate dependencies: chart-lib (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: chart-lib (this file ProductChart and SalesMetrics all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/components/ProductChart.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/components/ProductChart.tsx:0-0</td>
-                    <td>Duplicate dependencies: chart-lib (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: chart-lib (this file SalesMetrics and ProductChart all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/components/ProductChart.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/components/ProductChart.tsx:29-33</td>
-                    <td>Duplicate dependencies: date-fns (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: date-fns (this file ProductChart and UserActivity all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/components/ProductChart.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/components/ProductChart.tsx:0-0</td>
-                    <td>Duplicate dependencies: date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: date-fns (this file UserActivity and ProductChart all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/components/ProductChart.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/components/ProductChart.tsx:0-0</td>
-                    <td>Duplicate dependencies: lodash (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: lodash (this file SalesMetrics and UserActivity all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/components/ProductChart.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/components/ProductChart.tsx:0-0</td>
-                    <td>Duplicate dependencies: lodash (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: lodash (this file UserActivity and SalesMetrics all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/components/ProductChart.tsx</td>
                   </tr><tr>
                     <td>client-forbidden-import</td>
@@ -354,37 +354,37 @@ WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalid
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/SalesMetrics.tsx:0-0</td>
-                    <td>Duplicate dependencies: chart-lib (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: chart-lib (this file ProductChart and SalesMetrics all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/dashboard/SalesMetrics.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/SalesMetrics.tsx:36-47</td>
-                    <td>Duplicate dependencies: chart-lib (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: chart-lib (this file SalesMetrics and ProductChart all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/dashboard/SalesMetrics.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/SalesMetrics.tsx:0-0</td>
-                    <td>Duplicate dependencies: date-fns (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: date-fns (this file ProductChart and UserActivity all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/dashboard/SalesMetrics.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/SalesMetrics.tsx:0-0</td>
-                    <td>Duplicate dependencies: date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: date-fns (this file UserActivity and ProductChart all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/dashboard/SalesMetrics.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/SalesMetrics.tsx:36-47</td>
-                    <td>Duplicate dependencies: lodash (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: lodash (this file SalesMetrics and UserActivity all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/dashboard/SalesMetrics.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/SalesMetrics.tsx:0-0</td>
-                    <td>Duplicate dependencies: lodash (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: lodash (this file UserActivity and SalesMetrics all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/dashboard/SalesMetrics.tsx</td>
                   </tr><tr>
                     <td>route-segment-config-conflict</td>
@@ -414,37 +414,37 @@ WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalid
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/UserActivity.tsx:0-0</td>
-                    <td>Duplicate dependencies: chart-lib (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: chart-lib (this file ProductChart and SalesMetrics all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/dashboard/UserActivity.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/UserActivity.tsx:0-0</td>
-                    <td>Duplicate dependencies: chart-lib (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: chart-lib (this file SalesMetrics and ProductChart all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/dashboard/UserActivity.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/UserActivity.tsx:0-0</td>
-                    <td>Duplicate dependencies: date-fns (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: date-fns (this file ProductChart and UserActivity all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/dashboard/UserActivity.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/UserActivity.tsx:37-47</td>
-                    <td>Duplicate dependencies: date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: date-fns (this file UserActivity and ProductChart all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/dashboard/UserActivity.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/UserActivity.tsx:0-0</td>
-                    <td>Duplicate dependencies: lodash (also imported by UserActivity). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: lodash (this file SalesMetrics and UserActivity all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/dashboard/UserActivity.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/UserActivity.tsx:37-47</td>
-                    <td>Duplicate dependencies: lodash (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: lodash (this file UserActivity and SalesMetrics all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/dashboard/UserActivity.tsx</td>
                   </tr><tr>
                     <td>route-segment-config-conflict</td>
@@ -482,23 +482,23 @@ WARN: Route config 'dynamic = &quot;force-dynamic&quot;' conflicts with 'revalid
     <td>app/components/ProductChart.tsx</td>
     <td>142 KB</td>
     <td><span class="badge error" title="WARN: Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.
-WARN: Duplicate dependencies: date-fns (also imported by ProductGrid). Consider extracting shared code to a common module or using dynamic imports.
-WARN: Duplicate dependencies: date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: date-fns (this file ProductChart and ProductGrid all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: date-fns (this file ProductGrid and ProductChart all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
 ERROR: Client components must not import 'fs'.">Issues 4</span></td>
   </tr><tr>
     <td>CLIENT</td>
     <td>app/products/ProductGrid.tsx</td>
     <td>24.4 KB</td>
     <td><span class="badge warn" title="WARN: Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.
-WARN: Duplicate dependencies: date-fns (also imported by ProductGrid). Consider extracting shared code to a common module or using dynamic imports.
-WARN: Duplicate dependencies: date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.">Issues 3</span></td>
+WARN: Duplicate dependencies: date-fns (this file ProductChart and ProductGrid all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: date-fns (this file ProductGrid and ProductChart all import this dependency). Consider extracting shared code to a common module or using dynamic imports.">Issues 3</span></td>
   </tr><tr>
     <td>CLIENT</td>
     <td>app/products/FilterBar.tsx</td>
     <td>7.8 KB</td>
     <td><span class="badge warn" title="WARN: Client component is 141.6KB (183% over 50.0KB threshold). Consider code splitting or lazy loading.
-WARN: Duplicate dependencies: date-fns (also imported by ProductGrid). Consider extracting shared code to a common module or using dynamic imports.
-WARN: Duplicate dependencies: date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.">Issues 3</span></td>
+WARN: Duplicate dependencies: date-fns (this file ProductChart and ProductGrid all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: date-fns (this file ProductGrid and ProductChart all import this dependency). Consider extracting shared code to a common module or using dynamic imports.">Issues 3</span></td>
   </tr>
           </tbody>
        </table>
@@ -530,13 +530,13 @@ WARN: Duplicate dependencies: date-fns (also imported by ProductChart). Consider
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/products/page.tsx:0-0</td>
-                    <td>Duplicate dependencies: date-fns (also imported by ProductGrid). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: date-fns (this file ProductChart and ProductGrid all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/products/page.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/products/page.tsx:0-0</td>
-                    <td>Duplicate dependencies: date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: date-fns (this file ProductGrid and ProductChart all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/products/page.tsx</td>
                   </tr><tr>
                     <td>client-component-oversized</td>
@@ -548,13 +548,13 @@ WARN: Duplicate dependencies: date-fns (also imported by ProductChart). Consider
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/components/ProductChart.tsx:29-33</td>
-                    <td>Duplicate dependencies: date-fns (also imported by ProductGrid). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: date-fns (this file ProductChart and ProductGrid all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/components/ProductChart.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/components/ProductChart.tsx:0-0</td>
-                    <td>Duplicate dependencies: date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: date-fns (this file ProductGrid and ProductChart all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/components/ProductChart.tsx</td>
                   </tr><tr>
                     <td>client-forbidden-import</td>
@@ -572,13 +572,13 @@ WARN: Duplicate dependencies: date-fns (also imported by ProductChart). Consider
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/products/ProductGrid.tsx:0-0</td>
-                    <td>Duplicate dependencies: date-fns (also imported by ProductGrid). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: date-fns (this file ProductChart and ProductGrid all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/products/ProductGrid.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/products/ProductGrid.tsx:37-47</td>
-                    <td>Duplicate dependencies: date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: date-fns (this file ProductGrid and ProductChart all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/products/ProductGrid.tsx</td>
                   </tr><tr>
                     <td>client-component-oversized</td>
@@ -590,13 +590,13 @@ WARN: Duplicate dependencies: date-fns (also imported by ProductChart). Consider
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/products/FilterBar.tsx:0-0</td>
-                    <td>Duplicate dependencies: date-fns (also imported by ProductGrid). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: date-fns (this file ProductChart and ProductGrid all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/products/FilterBar.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/products/FilterBar.tsx:0-0</td>
-                    <td>Duplicate dependencies: date-fns (also imported by ProductChart). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: date-fns (this file ProductGrid and ProductChart all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/products/FilterBar.tsx</td>
                   </tr>
             </tbody>
@@ -629,16 +629,16 @@ WARN: Duplicate dependencies: date-fns (also imported by ProductChart). Consider
     <td>105 KB</td>
     <td><span class="badge warn" title="WARN: Client component is 60.5KB (21% over 50.0KB threshold). Consider code splitting or lazy loading.
 WARN: Client component is 105.5KB (111% over 50.0KB threshold). Consider code splitting or lazy loading.
-WARN: Duplicate dependencies: analytics-lib (also imported by RevenueBreakdown). Consider extracting shared code to a common module or using dynamic imports.
-WARN: Duplicate dependencies: analytics-lib (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.">Issues 4</span></td>
+WARN: Duplicate dependencies: analytics-lib (this file SalesMetrics and RevenueBreakdown all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: analytics-lib (this file RevenueBreakdown and SalesMetrics all import this dependency). Consider extracting shared code to a common module or using dynamic imports.">Issues 4</span></td>
   </tr><tr>
     <td>CLIENT</td>
     <td>app/reports/RevenueBreakdown.tsx</td>
     <td>60.5 KB</td>
     <td><span class="badge warn" title="WARN: Client component is 60.5KB (21% over 50.0KB threshold). Consider code splitting or lazy loading.
 WARN: Client component is 105.5KB (111% over 50.0KB threshold). Consider code splitting or lazy loading.
-WARN: Duplicate dependencies: analytics-lib (also imported by RevenueBreakdown). Consider extracting shared code to a common module or using dynamic imports.
-WARN: Duplicate dependencies: analytics-lib (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.">Issues 4</span></td>
+WARN: Duplicate dependencies: analytics-lib (this file SalesMetrics and RevenueBreakdown all import this dependency). Consider extracting shared code to a common module or using dynamic imports.
+WARN: Duplicate dependencies: analytics-lib (this file RevenueBreakdown and SalesMetrics all import this dependency). Consider extracting shared code to a common module or using dynamic imports.">Issues 4</span></td>
   </tr>
           </tbody>
        </table>
@@ -670,13 +670,13 @@ WARN: Duplicate dependencies: analytics-lib (also imported by SalesMetrics). Con
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/reports/page.tsx:0-0</td>
-                    <td>Duplicate dependencies: analytics-lib (also imported by RevenueBreakdown). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: analytics-lib (this file SalesMetrics and RevenueBreakdown all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/reports/page.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/reports/page.tsx:0-0</td>
-                    <td>Duplicate dependencies: analytics-lib (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: analytics-lib (this file RevenueBreakdown and SalesMetrics all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/reports/page.tsx</td>
                   </tr><tr>
                     <td>client-component-oversized</td>
@@ -694,13 +694,13 @@ WARN: Duplicate dependencies: analytics-lib (also imported by SalesMetrics). Con
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/SalesMetrics.tsx:36-47</td>
-                    <td>Duplicate dependencies: analytics-lib (also imported by RevenueBreakdown). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: analytics-lib (this file SalesMetrics and RevenueBreakdown all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/dashboard/SalesMetrics.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/dashboard/SalesMetrics.tsx:0-0</td>
-                    <td>Duplicate dependencies: analytics-lib (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: analytics-lib (this file RevenueBreakdown and SalesMetrics all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/dashboard/SalesMetrics.tsx</td>
                   </tr><tr>
                     <td>client-component-oversized</td>
@@ -718,13 +718,13 @@ WARN: Duplicate dependencies: analytics-lib (also imported by SalesMetrics). Con
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/reports/RevenueBreakdown.tsx:0-0</td>
-                    <td>Duplicate dependencies: analytics-lib (also imported by RevenueBreakdown). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: analytics-lib (this file SalesMetrics and RevenueBreakdown all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/reports/RevenueBreakdown.tsx</td>
                   </tr><tr>
                     <td>duplicate-dependencies</td>
                     <td class="suggestion-level-warn">WARN</td>
                     <td>app/reports/RevenueBreakdown.tsx:45-60</td>
-                    <td>Duplicate dependencies: analytics-lib (also imported by SalesMetrics). Consider extracting shared code to a common module or using dynamic imports.</td>
+                    <td>Duplicate dependencies: analytics-lib (this file RevenueBreakdown and SalesMetrics all import this dependency). Consider extracting shared code to a common module or using dynamic imports.</td>
                     <td>app/reports/RevenueBreakdown.tsx</td>
                   </tr>
             </tbody>
